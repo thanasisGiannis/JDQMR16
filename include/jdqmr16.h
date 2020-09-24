@@ -11,15 +11,15 @@
 
 struct jdqmr16Matrix {
 	/* cpu matrix space */
-   double  *hostValues;
-	int     *hostColumn;
-	int     *hostRow;
-
-	/* gpu matrix space */
-   double  *valuesD;
- 	half    *valuesH;
+   double  *values;
 	int     *column;
 	int     *row;
+
+	/* gpu matrix space */
+   double  *devValuesD;
+ 	half    *devValuesH;
+	int     *devColumn;
+	int     *devRow;
 
 	/* matrix general info */
 	int dim;
@@ -28,18 +28,19 @@ struct jdqmr16Matrix {
 
 
 struct jdqmr16Info {
-
-   int dim      = NULL;
    int numEvals = 1;
 
    int maxBasis = 15;
    int maxIter  = 1000;
    int tol      = 1e-04;
 
-
-   struct jdqmr16Matrix* mat;
+   struct jdqmr16Matrix* matrix;
 
 };
+
+void init_jdqmr16();
+void destroy_jdqmr16();
+void jdqmr16();
 
 
 #endif

@@ -2,11 +2,6 @@ SRC=./src/
 HFILES = $(SRC)*.h
 CUDADIR=/usr/local/cuda-10.2
 
-OBJS  = examples/ex_eigs.cu
-#OBJS += 
-#OBJS += 
-#OBJ += 
-
 CUDA_ARCH_FLAGS := -O3 -w -arch=sm_70
 CFLAGS = $(CUDA_ARCH_FLAGS)
 
@@ -16,8 +11,20 @@ LIBS =  -lm -lcusolver -lcusparse -lcurand  -lcublas -lculibos -lcudart -lpthrea
 LINK_LIBS = -L$(CUDADIR)/lib64 
 
 
-examples/ex_eigs:${OBJ}
-	${CC} ${OBJS}  ${INCLUDES} ${LINK_LIBS}  ${LIBS} ${CFLAGS} -o $@ 
+
+
+# EXAMPLES COMPILATION 
+EXAMBLES  = examples/ex_eigs.cu examples/include/mmio.cu src/eig/jdqmr16.cu
+
+# LIBRARY COMPILATION
+#OBJS  = 
+#OBJS += 
+#OBJS += 
+
+
+
+examples/ex_eigs:${EXAMBLES}
+	${CC} ${EXAMBLES}  ${INCLUDES} ${LINK_LIBS}  ${LIBS} ${CFLAGS} -o $@ 
 
 clean:
 	-rm -f *.o examples/ex_eigs
