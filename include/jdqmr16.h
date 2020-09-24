@@ -12,20 +12,26 @@
 struct jdqmr16Matrix {
 	/* cpu matrix space */
    double  *values;
-	int     *column;
-	int     *row;
+	int     *cols;
+	int     *rows;
 
 	/* gpu matrix space */
    double  *devValuesD;
  	half    *devValuesH;
-	int     *devColumn;
-	int     *devRow;
+	int     *devCols;
+	int     *devRows;
 
 	/* matrix general info */
 	int dim;
 	int nnz; 
 };
 
+
+struct devSolverSpace{
+   
+   double *W; // space of projection (in the JD iteration)
+
+};
 
 struct jdqmr16Info {
    int numEvals = 1;
@@ -35,11 +41,11 @@ struct jdqmr16Info {
    int tol      = 1e-04;
 
    struct jdqmr16Matrix* matrix;
-
+   struct devSolverSpace *sp;
 };
 
-void init_jdqmr16();
-void destroy_jdqmr16();
+void init_jdqmr16(struct jdqmr16Info *jd);
+void destroy_jdqmr16(struct jdqmr16Info *jd);
 void jdqmr16();
 
 
