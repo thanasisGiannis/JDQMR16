@@ -1,8 +1,12 @@
 #include "../../include/jdqmr16.h"
+
 #include <stdio.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
+#include <curand.h>
+
 #include "../include/helper.h"
+#include "initBasis.h"
 
 void init_jdqmr16(struct jdqmr16Info *jd){
    
@@ -33,16 +37,64 @@ void init_jdqmr16(struct jdqmr16Info *jd){
 
 
    /* allocate device memory for solver */
-   jd->sp = (struct devSolverSpace*)malloc(sizeof(struct devSolverSpace));
+   jd->sp   = (struct devSolverSpace*)malloc(sizeof(struct devSolverSpace));
+   jd->gpuH = (struct gpuHandler*)malloc(sizeof(struct gpuHandler));
+   
+   /* initialize gpu handlers */
+   struct gpuHandler *gpuH = jd->gpuH;   
+   // curand
+   curandGenerator_t *curandH = &(gpuH->curandH);
+	curandCreateGenerator(curandH, CURAND_RNG_PSEUDO_DEFAULT);
+   // cusolver
+   cusolverDnHandle_t *cusolverH = &(gpuH->cusolverH);
+   cusolverDnCreate(cusolverH);
+   // cublas
+   cublasHandle_t *cublasH =  &(gpuH->cublasH);
+   cublasCreate(cublasH);   
+   
+
+   /* initialize space for solver */
    struct devSolverSpace* sp = jd->sp;
-   CUDA_CALL(cudaMalloc((void**)&sp->W,sizeof(double)*dim*maxBasis*numEvals));
+   CUDA_CALL(cudaMalloc((void**)&sp->W,sizeof(double)*dim*maxBasis*numEvals));sp->ldW = dim;
+   CUDA_CALL(cudaMalloc((void**)&sp->H,sizeof(double)*maxBasis*maxBasis));    sp->ldH = maxBasis;
+   CUDA_CALL(cudaMalloc((void**)&sp->V,sizeof(double)*numEvals*dim));         sp->ldV = dim;
+   CUDA_CALL(cudaMalloc((void**)&sp->L,sizeof(double)*numEvals)); 
+
+
+   double *H        = sp->H;        /* projected Matrix */
+   double *V        = sp->V;        /* Ritz vectors */
+   double *W        = sp->L;        /* Ritz values */
+
+
+
+   /* init inner functions */
+   jd->spInitBasis = (struct initBasisSpace *)malloc(sizeof(struct initBasisSpace));
+   initBasis_init(sp->W,sp->ldW, sp->H, sp->ldH, sp->V, sp->ldV,sp->L, dim, maxBasis,numEvals,jd);
 
 
    return;
 }
 
 void destroy_jdqmr16(struct jdqmr16Info *jd){
-   /* allocate gpu memory */
+
+   /* destroy inner functions */
+   initBasis_destroy(jd);
+
+
+   /* destroy gpu handlers */ 
+   struct gpuHandler *gpuH = jd->gpuH;   
+
+   // curand     
+   curandGenerator_t curandH = gpuH->curandH;
+	curandDestroyGenerator(curandH);
+   // cusolver
+   cusolverDnHandle_t cusolverH = gpuH->cusolverH;
+	cusolverDnDestroy(cusolverH);
+	// cublas
+   cublasHandle_t cublasH = gpuH->cublasH;
+   cublasDestroy(cublasH);
+
+   /* Destroy Matrix */
    struct jdqmr16Matrix *A = jd->matrix;   
    
    double *devVals = A->devValuesD;
@@ -58,16 +110,66 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
 
    struct devSolverSpace *sp = jd->sp;
    CUDA_CALL(cudaFree(sp->W));
+   CUDA_CALL(cudaFree(sp->H));
+   CUDA_CALL(cudaFree(sp->V));
+   CUDA_CALL(cudaFree(sp->L));
 
+   free(jd->gpuH);
    free(jd->sp);
-
-
+   
    return;
 
 }
 
-void jdqmr16(){
+void jdqmr16(struct jdqmr16Info *jd){
 
-   printf("jdqmr16\n");
+   /* Generalized Davidson Iteration */
+   struct jdqmr16Matrix *A = jd->matrix;   
+   
+
+   struct devSolverSpace* sp = jd->sp;
+   double *W = sp->W; int ldW = sp->ldW; /* GD basis */
+   double *H = sp->H; int ldH = sp->ldH; /* projected Matrix */
+   double *V = sp->V; int ldV = sp->ldV; /* Ritz vectors */
+   double *L = sp->L;                    /* Ritz values */
+
+   int     dim      = A->dim;       /* dimension of the problem */
+   int     numEvals = jd->numEvals; /* number of wanted eigenvalues */
+   int     maxBasis = jd->maxBasis; /* maximum size of GD */
+
+
+   initBasis(W,ldW,H,ldH,V,ldV,L,dim,maxBasis,numEvals,jd);
+
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

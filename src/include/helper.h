@@ -40,4 +40,10 @@
     return EXIT_FAILURE;}cudaDeviceSynchronize();} while(0)
 
 
+
+#if 1
+void printMatrixDouble(double *matrix, int rows, int cols, char *name);
+void printMatrixInt(double *matrix, int rows, int cols, char *name);
+#endif
+
 #endif

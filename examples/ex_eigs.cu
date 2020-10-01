@@ -90,24 +90,24 @@ int main(){
 
    /* Preparing data for jdqmr16 */
    A->values = vA;     // cpu values of matrix
-   A->row    = rows;   // array of row indexing
-   A->column = cols;   // array of column indexing
+   A->rows   = rows;   // array of row indexing
+   A->cols   = cols;   // array of column indexing
    A->dim    = numRows; // or numCols (support for symmetric matrices)
    A->nnz    = nnz;     // number of nonzero elements
   
 
    struct jdqmr16Info* jd = (struct jdqmr16Info*)malloc(sizeof(struct jdqmr16Info));
 
-   jd->numEvals = 1;     // number of wanted eigenvalues
+   jd->numEvals = 10;     // number of wanted eigenvalues
    jd->maxBasis = 15;    // maximum size of JD basis
    jd->maxIter  = 1000;  // maximum number of JD iterations
    jd->tol      = 1e-04; // tolerance of the residual
    jd->matrix   = A;     // data of matrix
 
 
-   init_jdqmr16();
-   jdqmr16();
-   destroy_jdqmr16();
+   init_jdqmr16(jd);
+   jdqmr16(jd);
+   destroy_jdqmr16(jd);
 
 
    

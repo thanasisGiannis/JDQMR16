@@ -26,10 +26,31 @@ struct jdqmr16Matrix {
 	int nnz; 
 };
 
+struct gpuHandler{
+
+   curandGenerator_t   curandH;
+   cusolverDnHandle_t  cusolverH;
+   cublasHandle_t      cublasH;
+};
 
 struct devSolverSpace{
    
-   double *W; // space of projection (in the JD iteration)
+   double *V; int ldV;// ritz vectors
+   double *L;         // ritz values
+   double *W; int ldW;// space of projection (in the JD iteration)
+   double *H; int ldH;// projected matrix
+};
+
+
+struct initBasisSpace{
+   double *d_tau   = NULL;
+   int    *devInfo = NULL;
+   double *d_work  = NULL;
+   double *d_R     = NULL;
+
+   int lwork_geqrf ;
+   int lwork_orgqr ;
+   int lwork       ;
 
 };
 
@@ -40,13 +61,16 @@ struct jdqmr16Info {
    int maxIter  = 1000;
    int tol      = 1e-04;
 
-   struct jdqmr16Matrix* matrix;
+   struct jdqmr16Matrix  *matrix;
    struct devSolverSpace *sp;
+   struct gpuHandler     *gpuH;
+
+   struct initBasisSpace *spInitBasis;
 };
 
 void init_jdqmr16(struct jdqmr16Info *jd);
 void destroy_jdqmr16(struct jdqmr16Info *jd);
-void jdqmr16();
+void jdqmr16(struct jdqmr16Info *jd);
 
 
 #endif
