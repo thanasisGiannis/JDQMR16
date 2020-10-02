@@ -23,7 +23,7 @@ void printMatrixDouble(double *matrix, int rows, int cols, char *name){
 	free(hmatrix);
 }
 
-void printMatrixInt(double *matrix, int rows, int cols, char *name){
+void printMatrixInt(int *matrix, int rows, int cols, char *name){
 
 	int *hmatrix = (int*)malloc(sizeof(int)*rows*cols);
 	cudaMemcpy(hmatrix,matrix,sizeof(int)*rows*cols,cudaMemcpyDeviceToHost);

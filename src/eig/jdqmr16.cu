@@ -26,15 +26,13 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    int     maxBasis = jd->maxBasis;
 
    /* initialize data to device */
-   CUDA_CALL(cudaMalloc((void**)&devVals,sizeof(double)*nnz));
-   CUDA_CALL(cudaMalloc((void**)&devCols,sizeof(double)*nnz));
-   CUDA_CALL(cudaMalloc((void**)&devRows,sizeof(double)*(nnz+1)));
+   CUDA_CALL(cudaMalloc((void**)&(A->devValuesD),sizeof(double)*nnz));
+   CUDA_CALL(cudaMalloc((void**)&(A->devCols),sizeof(int)*nnz));
+   CUDA_CALL(cudaMalloc((void**)&(A->devRows),sizeof(int)*nnz));
 
-   CUDA_CALL(cudaMemcpy((void*)devVals,(void*)vals,sizeof(double)*nnz,cudaMemcpyHostToDevice));
-   CUDA_CALL(cudaMemcpy((void*)devCols,(void*)cols,sizeof(double)*nnz,cudaMemcpyHostToDevice));
-   CUDA_CALL(cudaMemcpy((void*)devRows,(void*)rows,sizeof(double)*(nnz+1),cudaMemcpyHostToDevice));
-
-
+   CUDA_CALL(cudaMemcpy((void*)(A->devValuesD),(void*)vals,sizeof(double)*nnz,cudaMemcpyHostToDevice));
+   CUDA_CALL(cudaMemcpy((void*)(A->devCols),(void*)cols,sizeof(int)*nnz,cudaMemcpyHostToDevice));
+   CUDA_CALL(cudaMemcpy((void*)(A->devRows),(void*)rows,sizeof(int)*nnz,cudaMemcpyHostToDevice));
 
    /* allocate device memory for solver */
    jd->sp   = (struct devSolverSpace*)malloc(sizeof(struct devSolverSpace));
@@ -51,16 +49,18 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    // cublas
    cublasHandle_t *cublasH =  &(gpuH->cublasH);
    cublasCreate(cublasH);   
-   
+   // cusparse
+   cusparseHandle_t *cusparseH = &(gpuH->cusparseH);
+   cusparseCreate(cusparseH);
 
    /* initialize space for solver */
    struct devSolverSpace* sp = jd->sp;
-   CUDA_CALL(cudaMalloc((void**)&sp->W,sizeof(double)*dim*maxBasis*numEvals));sp->ldW = dim;
-   CUDA_CALL(cudaMalloc((void**)&sp->H,sizeof(double)*maxBasis*maxBasis));    sp->ldH = maxBasis;
-   CUDA_CALL(cudaMalloc((void**)&sp->V,sizeof(double)*numEvals*dim));         sp->ldV = dim;
+   CUDA_CALL(cudaMalloc((void**)&sp->W,sizeof(double)*dim*maxBasis*numEvals));               sp->ldW     = dim;
+   CUDA_CALL(cudaMalloc((void**)&sp->H,sizeof(double)*maxBasis*numEvals*maxBasis*numEvals)); sp->ldH     = maxBasis*numEvals;
+   CUDA_CALL(cudaMalloc((void**)&sp->Vprev,sizeof(double)*numEvals*dim));                    sp->ldVprev = dim;
+   CUDA_CALL(cudaMalloc((void**)&sp->V,sizeof(double)*numEvals*dim));                        sp->ldV     = dim;
    CUDA_CALL(cudaMalloc((void**)&sp->L,sizeof(double)*numEvals)); 
-
-
+   
    double *H        = sp->H;        /* projected Matrix */
    double *V        = sp->V;        /* Ritz vectors */
    double *W        = sp->L;        /* Ritz values */
@@ -93,6 +93,9 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
 	// cublas
    cublasHandle_t cublasH = gpuH->cublasH;
    cublasDestroy(cublasH);
+   // cusparse
+   cusparseHandle_t cusparseH = gpuH->cusparseH;
+   cusparseDestroy(cusparseH);
 
    /* Destroy Matrix */
    struct jdqmr16Matrix *A = jd->matrix;   
@@ -111,6 +114,7 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
    struct devSolverSpace *sp = jd->sp;
    CUDA_CALL(cudaFree(sp->W));
    CUDA_CALL(cudaFree(sp->H));
+   CUDA_CALL(cudaFree(sp->Vprev));
    CUDA_CALL(cudaFree(sp->V));
    CUDA_CALL(cudaFree(sp->L));
 
@@ -125,7 +129,6 @@ void jdqmr16(struct jdqmr16Info *jd){
 
    /* Generalized Davidson Iteration */
    struct jdqmr16Matrix *A = jd->matrix;   
-   
 
    struct devSolverSpace* sp = jd->sp;
    double *W = sp->W; int ldW = sp->ldW; /* GD basis */
@@ -137,7 +140,7 @@ void jdqmr16(struct jdqmr16Info *jd){
    int     numEvals = jd->numEvals; /* number of wanted eigenvalues */
    int     maxBasis = jd->maxBasis; /* maximum size of GD */
 
-
+   int     basisSize = 1; // basis size in blocks 
    initBasis(W,ldW,H,ldH,V,ldV,L,dim,maxBasis,numEvals,jd);
 
 }
