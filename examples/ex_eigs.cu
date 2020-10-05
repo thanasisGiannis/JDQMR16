@@ -14,6 +14,8 @@
 #include "../include/jdqmr16.h"
 #include "include/mmio.h"
 
+
+void quicksort(double *val ,int first,int last , int *I, int *J);
 int main(){
 
 //	char *mName = "MTX_FILES/1138_bus.mtx"; //1138
@@ -69,21 +71,48 @@ int main(){
    if ((ret_code = mm_read_mtx_crd_size(f, &numRows, &numCols, &nnz)) !=0)
      exit(1);
 
-
-   /* matrix memory allocation */ 
-   rows = (int *) malloc(nnz * sizeof(int));
-   cols = (int *) malloc(nnz * sizeof(int));
-   vA   = (double *) malloc(nnz * sizeof(double));
-
-
-
+   int trueNNZ = 0;
+   int tmprows,tmpcols; 
+   double tmpvA;
    for (int i=0; i<nnz; i++)
    {
-     fscanf(f, "%d %d %lg\n", &rows[i], &cols[i], &vA[i]);
-     rows[i]--;  /* adjust from 1-based to 0-based */
-     cols[i]--;
+     fscanf(f, "%d %d %lg\n", &tmprows, &tmpcols, &tmpvA);
+     trueNNZ++;
+     if(tmprows != tmpcols){
+         trueNNZ++;
+     }   
    }
 
+   fseek(f, 0, 0);
+   mm_read_banner(f, &matcode);
+   mm_read_mtx_crd_size(f, &numRows, &numCols, &nnz);
+
+   /* matrix memory allocation */ 
+   rows = (int *) malloc(trueNNZ * sizeof(int));
+   cols = (int *) malloc(trueNNZ * sizeof(int));
+   vA   = (double *) malloc(trueNNZ * sizeof(double));
+
+
+   int matIndex = 0;
+   for (int i=0; i<nnz; i++)
+   {
+     fscanf(f, "%d %d %lg\n", &rows[matIndex], &cols[matIndex], &vA[matIndex]);
+     rows[matIndex]--;  /* adjust from 1-based to 0-based */
+     cols[matIndex]--;
+
+     if(rows[matIndex] != cols[matIndex]){
+         rows[matIndex+1] = cols[matIndex];
+         cols[matIndex+1] = rows[matIndex];
+         vA[matIndex+1]   = vA[matIndex];
+      
+         matIndex++;
+     }   
+
+     matIndex++;
+   }
+   nnz = trueNNZ;
+
+   quicksort(vA ,0,nnz-1 ,rows,cols);
    if (f !=stdin) fclose(f);
    /* /\--- Done Loading Data ---/\ */
 
@@ -123,4 +152,59 @@ int main(){
 }
 
 
+void quicksort(double *val ,int first,int last , int *I, int *J){
+   int i, j, pivot, temp;
+	double tmpVal;
+
+   if(first<last){
+      pivot=first;
+      i=first;
+      j=last;
+
+      while(i<j){
+         while(I[i]<=I[pivot]&&i<last)
+            i++;
+         while(I[j]>I[pivot])
+            j--;
+         if(i<j){
+
+
+            tmpVal=val[i];
+            val[i]=val[j];
+            val[j]=tmpVal;
+
+
+            temp=I[i];
+            I[i]=I[j];
+            I[j]=temp;
+
+
+
+            temp=J[i];
+            J[i]=J[j];
+            J[j]=temp;
+
+
+         }
+      }
+
+      tmpVal=val[pivot];
+      val[pivot]=val[j];
+      val[j]=tmpVal;
+
+
+      temp=I[pivot];
+      I[pivot]=I[j];
+      I[j]=temp;
+
+
+      temp=J[pivot];
+      J[pivot]=J[j];
+      J[j]=temp;
+
+      quicksort(val,first,j-1, I,J);
+      quicksort(val,j+1,last,I,J);
+
+   }
+}
 

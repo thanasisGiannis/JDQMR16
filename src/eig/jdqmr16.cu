@@ -7,6 +7,8 @@
 
 #include "../include/helper.h"
 #include "initBasis.h"
+#include "eigH.h"
+
 
 void init_jdqmr16(struct jdqmr16Info *jd){
    
@@ -25,6 +27,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    int     numEvals = jd->numEvals;
    int     maxBasis = jd->maxBasis;
 
+   
    /* initialize data to device */
    CUDA_CALL(cudaMalloc((void**)&(A->devValuesD),sizeof(double)*nnz));
    CUDA_CALL(cudaMalloc((void**)&(A->devCols),sizeof(int)*nnz));
@@ -68,8 +71,14 @@ void init_jdqmr16(struct jdqmr16Info *jd){
 
 
    /* init inner functions */
+
+   // init initBasis
    jd->spInitBasis = (struct initBasisSpace *)malloc(sizeof(struct initBasisSpace));
    initBasis_init(sp->W,sp->ldW, sp->H, sp->ldH, sp->V, sp->ldV,sp->L, dim, maxBasis,numEvals,jd);
+
+   // init eigH
+   jd->spEigH = (struct eigHSpace *)malloc(sizeof(struct eigHSpace));   
+   eigH_init(sp->W, sp->ldW, sp->L, sp->H, sp->ldH, numEvals, maxBasis, jd);
 
 
    return;
@@ -79,6 +88,7 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
 
    /* destroy inner functions */
    initBasis_destroy(jd);
+   eigH_destroy(jd);
 
 
    /* destroy gpu handlers */ 
@@ -139,10 +149,17 @@ void jdqmr16(struct jdqmr16Info *jd){
    int     dim      = A->dim;       /* dimension of the problem */
    int     numEvals = jd->numEvals; /* number of wanted eigenvalues */
    int     maxBasis = jd->maxBasis; /* maximum size of GD */
-
+   
    int     basisSize = 1; // basis size in blocks 
-   initBasis(W,ldW,H,ldH,V,ldV,L,dim,maxBasis,numEvals,jd);
+   initBasis(W,ldW,H,ldH,V,ldV,L,dim,maxBasis,numEvals,jd); // basis initilization and H creation
+   
+   eigH(V, ldV, L, W,ldW, H, ldH, numEvals, basisSize,jd);  // first approximation of eigevectors
 
+   printMatrixDouble(W,ldW,numEvals,"W");
+   printMatrixDouble(V,ldV,numEvals,"V");
+
+
+   printMatrixDouble(L,numEvals,1,"L");
 }
 
 

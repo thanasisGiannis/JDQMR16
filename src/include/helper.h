@@ -43,7 +43,7 @@
 
 #if 1
 void printMatrixDouble(double *matrix, int rows, int cols, char *name);
-void printMatrixInt(double *matrix, int rows, int cols, char *name);
+void printMatrixInt(int *matrix, int rows, int cols, char *name);
 #endif
 
 #endif

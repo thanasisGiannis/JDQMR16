@@ -56,10 +56,9 @@ void initBasis_init(double *W, int ldW, double *H, int ldH, double *V, int ldV, 
                         &one,spInitBasis->descrA,spInitBasis->descrV,&zero,spInitBasis->descrAV,
                         CUDA_R_64F,CUSPARSE_COOMM_ALG2,&bufferSize);
 
+
    cudaMalloc((void**)&(spInitBasis->externalBuffer),bufferSize);
-
    spInitBasis->bufferSize = bufferSize;    
-
 
 }
 
@@ -67,6 +66,8 @@ void initBasis_init(double *W, int ldW, double *H, int ldH, double *V, int ldV, 
 void initBasis_destroy(struct jdqmr16Info *jd){
 
    struct initBasisSpace *spInitBasis = jd->spInitBasis;
+
+   cudaFree(spInitBasis->externalBufferTrans);
    cudaFree(spInitBasis->externalBuffer);
    cudaFree(spInitBasis->d_tau);
    cudaFree(spInitBasis->devInfo);
@@ -129,15 +130,13 @@ void initBasis(double *W, int ldW, double *H, int ldH, double *V, int ldV, doubl
              CUDA_R_64F,CUSPARSE_COOMM_ALG2,spInitBasis->externalBuffer);
 
 
+
    cublasHandle_t cublasH = gpuH->cublasH;
 
    cublasDgemm(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,numEvals, dim,&one,V,ldV,AV,ldAV,&zero,H,ldH);
 
    /* W = V */
    cudaMemcpy(W,V,dim*numEvals*sizeof(double),cudaMemcpyDeviceToDevice); 
-
-
-   printMatrixDouble(H,ldH,numEvals*maxSizeW,"H");
 
 }
 
