@@ -67,17 +67,15 @@ void initBasis_destroy(struct jdqmr16Info *jd){
 
    struct initBasisSpace *spInitBasis = jd->spInitBasis;
 
-   cudaFree(spInitBasis->externalBufferTrans);
    cudaFree(spInitBasis->externalBuffer);
    cudaFree(spInitBasis->d_tau);
    cudaFree(spInitBasis->devInfo);
    cudaFree(spInitBasis->d_R);
    cudaFree(spInitBasis->d_work);
    cudaFree(spInitBasis->AV);
-
 }
 
-void initBasis(double *W, int ldW, double *H, int ldH, double *V, int ldV, double *L,
+void initBasis(double *W, int ldW, double *H, int ldH, double *V, int ldV, double *L, double *AW, int ldAW,
                 int dim, int maxSizeW, int numEvals, struct jdqmr16Info *jd){
 
 
@@ -130,6 +128,7 @@ void initBasis(double *W, int ldW, double *H, int ldH, double *V, int ldV, doubl
              CUDA_R_64F,CUSPARSE_COOMM_ALG2,spInitBasis->externalBuffer);
 
 
+   cudaMemcpy(AW,AV,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
 
    cublasHandle_t cublasH = gpuH->cublasH;
 
