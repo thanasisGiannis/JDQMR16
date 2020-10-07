@@ -127,9 +127,9 @@ int main(){
 
    struct jdqmr16Info* jd = (struct jdqmr16Info*)malloc(sizeof(struct jdqmr16Info));
 
-   jd->numEvals = 10;     // number of wanted eigenvalues
-   jd->maxBasis = 15;    // maximum size of JD basis
-   jd->maxIter  = 1000;  // maximum number of JD iterations
+   jd->numEvals = 2;     // number of wanted eigenvalues
+   jd->maxBasis = 5;    // maximum size of JD basis
+   jd->maxIter  = 30;  // maximum number of JD iterations
    jd->tol      = 1e-04; // tolerance of the residual
    jd->matrix   = A;     // data of matrix
 

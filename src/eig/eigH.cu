@@ -74,6 +74,7 @@ void eigH(double *V, int ldV, double *L, double *W, int ldW, double *H, int ldH,
    double one  = 1.0;
    double zero = 0.0;
 
+   cudaMemset(QH,0,sizeof(double)*ldQH*sizeQH);
    cublasDgeam(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,sizeQH,sizeQH,&one,H, ldH,&zero,QH, ldQH, QH,ldQH);
 
    cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_VECTOR; // compute eigenvalues and eigenvectors.
@@ -86,9 +87,11 @@ void eigH(double *V, int ldV, double *L, double *W, int ldW, double *H, int ldH,
    cudaMemcpy(L,LH,numEvals*sizeof(double),cudaMemcpyDeviceToDevice);
 
    /* V = W*QH */
-   cublasDgemm(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals, numEvals,&one,W,ldW,QH,ldQH,&zero,V,ldV);
+   cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,basisSize*numEvals,&one,
+                           W,CUDA_R_64F,ldW,QH,CUDA_R_64F,ldQH,&zero,
+                           V,CUDA_R_64F,ldV,CUDA_R_64F,
+                           CUBLAS_GEMM_ALGO2);
 
-//   printMatrixDouble(LH,numEvals,1,"LH");
 }
 
 

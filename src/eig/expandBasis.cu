@@ -24,9 +24,9 @@ void expandBasis_init(double *W, int ldW, double *H, int ldH, double *P, int ldP
    cusolverDnHandle_t     cusolverH = gpuH->cusolverH;
    cusparseHandle_t       cusparseH = gpuH->cusparseH;
 
+
    cudaMalloc((void**)&(spExpandBasis->WTP),sizeof(double)*maxBasisSize*numEvals*numEvals);
    spExpandBasis->ldWTP = maxBasisSize*numEvals;
-
 
 
    /* P = orth(P) */
@@ -107,22 +107,23 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, dou
    double one  = 1.0;
    double zero = 0.0;
 
-   cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,basisSize*numEvals,numEvals,dim,&one,
-                           W,CUDA_R_64F,ldW,P,CUDA_R_64F,ldP,&zero,
-                           WTP,CUDA_R_64F,ldWTP,CUDA_R_64F,
-                           CUBLAS_GEMM_ALGO2);
-   double minus_one = -1.0;
-   cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,basisSize*numEvals,&minus_one,
-                           W,CUDA_R_64F,ldW,WTP,CUDA_R_64F,ldWTP,&one,
-                           P,CUDA_R_64F,ldP,CUDA_R_64F,
-                           CUBLAS_GEMM_ALGO2);
+   for(int i=0; i<basisSize; i++){
+      cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,basisSize*numEvals,numEvals,dim,&one,
+                              W,CUDA_R_64F,ldW,P,CUDA_R_64F,ldP,&zero,
+                              WTP,CUDA_R_64F,ldWTP,CUDA_R_64F,
+                              CUBLAS_GEMM_ALGO2);
+      double minus_one = -1.0;
+      cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,basisSize*numEvals,&minus_one,
+                              W,CUDA_R_64F,ldW,WTP,CUDA_R_64F,ldWTP,&one,
+                              P,CUDA_R_64F,ldP,CUDA_R_64F,
+                              CUBLAS_GEMM_ALGO2);
+   }
 
-   
    /* P = orth(P)  */
    double *d_tau   = spExpandBasis->d_tau;
    int    *devInfo = spExpandBasis->devInfo;
    double *d_work  = spExpandBasis->d_work;
-   int lwork = spExpandBasis->lwork;
+   int     lwork   = spExpandBasis->lwork;
 
    cusolverDnDgeqrf(cusolverH,dim,numEvals,P,ldP,d_tau,d_work,lwork,devInfo);
    cusolverDnDorgqr(cusolverH,dim,numEvals,numEvals,P,ldP,d_tau,d_work,lwork,devInfo);
@@ -134,12 +135,46 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, dou
              CUSPARSE_COOMM_ALG2,spExpandBasis->buffer);
 
    /* H = [H W'*AP; P'*AW P'*AP*/
+   // P'*AP   
+   cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,numEvals,dim,&one,
+                           P,CUDA_R_64F,ldP,AP,CUDA_R_64F,ldAP,&zero,
+                           &H[basisSize*numEvals+(basisSize*numEvals)*ldH],CUDA_R_64F,ldH,CUDA_R_64F,
+                           CUBLAS_GEMM_ALGO2);
 
-   
+
+   // W'*AP
+   cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,basisSize*numEvals,numEvals,dim,&one,
+                           W,CUDA_R_64F,ldW,AP,CUDA_R_64F,ldAP,&zero,
+                           &H[0+(basisSize*numEvals)*ldH],CUDA_R_64F,ldH,CUDA_R_64F,
+                           CUBLAS_GEMM_ALGO2);
+
+
+   // P'*AW
+   cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,basisSize*numEvals,dim,&one,
+                           P,CUDA_R_64F,ldP,AW,CUDA_R_64F,ldAW,&zero,
+                           &H[basisSize*numEvals+0*ldH],CUDA_R_64F,ldH,CUDA_R_64F,
+                           CUBLAS_GEMM_ALGO2);
+
 
    /* AW = [AW AP] */
-
+   cudaMemcpy(&AW[0 + basisSize*numEvals*ldAW],AP,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
    /* W = [W P] */
+   cudaMemcpy(&W[0 +basisSize*numEvals*ldW],P,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
 
 
+   
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
