@@ -24,7 +24,7 @@ void innerSolver_init(double *P, int ldP, double *R, int ldR,
 
 
    spInnerSolver->maxB       = (double*)malloc(sizeof(double));
-   spInnerSolver->n  ormIndexB = (int*)malloc(sizeof(int));
+   spInnerSolver->normIndexB = (int*)malloc(sizeof(int));
 
 }
 
