@@ -88,11 +88,9 @@ void expandBasis_destroy(struct jdqmr16Info *jd){
 }
 
 void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, double *AW, int ldAW,
-                int basisSize, int dim, int numEvals, struct jdqmr16Info *jd){
+                int &basisSize, int dim, int numEvals, struct jdqmr16Info *jd){
 
-
-
-
+   
    struct gpuHandler        *gpuH          = jd->gpuH;
    struct expandBasisSpace  *spExpandBasis = jd->spExpandBasis;
 
@@ -161,7 +159,7 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, dou
    cudaMemcpy(&W[0 +basisSize*numEvals*ldW],P,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
 
 
-   
+   basisSize++;
 }
 
 

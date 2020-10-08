@@ -11,6 +11,7 @@
 #include "residual.h"   
 #include "expandBasis.h"
 #include "restart.h"
+#include "innerSolver.h"
 
 void init_jdqmr16(struct jdqmr16Info *jd){
    
@@ -70,12 +71,10 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    CUDA_CALL(cudaMalloc((void**)&sp->H,sizeof(double)*maxBasis*numEvals*maxBasis*numEvals)); sp->ldH     = maxBasis*numEvals;
    CUDA_CALL(cudaMalloc((void**)&sp->Vprev,sizeof(double)*numEvals*dim));                    sp->ldVprev = dim;
    CUDA_CALL(cudaMalloc((void**)&sp->V,sizeof(double)*numEvals*dim));                        sp->ldV     = dim;
-   CUDA_CALL(cudaMalloc((void**)&sp->Lprev,sizeof(double)*numEvals)); 
    CUDA_CALL(cudaMalloc((void**)&sp->L,sizeof(double)*numEvals)); 
    CUDA_CALL(cudaMalloc((void**)&sp->R,sizeof(double)*numEvals*dim));                        sp->ldR     = dim;
 
    CUDA_CALL(cudaMalloc((void**)&sp->AW,sizeof(double)*maxBasis*numEvals*dim));              sp->ldAW    = dim;
-   //CUDA_CALL(cudaMalloc((void**)&sp->AP,sizeof(double)*numEvals*dim));                       sp->ldAP    = dim;
    CUDA_CALL(cudaMalloc((void**)&sp->P,sizeof(double)*numEvals*dim));                        sp->ldP     = dim;
    
 
@@ -103,8 +102,13 @@ void init_jdqmr16(struct jdqmr16Info *jd){
 
    // init restart
    jd->spRestart = (struct restartSpace *)malloc(sizeof(struct restartSpace));
-   restart_init(sp->W, sp->ldW, sp->H, sp->ldH, sp->Vprev, sp->ldVprev, sp->Lprev, sp->V, sp->ldV, sp->L,
+   restart_init(sp->W, sp->ldW, sp->H, sp->ldH, sp->Vprev, sp->ldVprev, NULL , sp->V, sp->ldV, sp->L,
                &maxBasis, maxBasis, numEvals, dim, jd);
+
+   // init innerSolver
+   jd->spInnerSolver = (struct innerSolverSpace*)malloc(sizeof(struct innerSolverSpace));
+   innerSolver_init(sp->P, sp->ldP, sp->R, sp->ldR, sp->V, sp->ldV, sp->L, numEvals, dim,jd);
+
 
    return;
 }
@@ -112,6 +116,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
 void destroy_jdqmr16(struct jdqmr16Info *jd){
 
    /* destroy inner functions */
+   innerSolver_destroy(jd);
    restart_destroy(jd);
    expandBasis_destroy(jd);
    initBasis_destroy(jd);
@@ -153,14 +158,12 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
 
    CUDA_CALL(cudaFree(sp->AW));
    CUDA_CALL(cudaFree(sp->P));
-   //CUDA_CALL(cudaFree(sp->AP));
    CUDA_CALL(cudaFree(sp->R));
    CUDA_CALL(cudaFree(sp->W));
    CUDA_CALL(cudaFree(sp->H));
    CUDA_CALL(cudaFree(sp->Vprev));
    CUDA_CALL(cudaFree(sp->V));
    CUDA_CALL(cudaFree(sp->L));
-   CUDA_CALL(cudaFree(sp->Lprev));
 
    free(jd->spRestart);
    free(jd->spExpandBasis);
@@ -187,7 +190,6 @@ void jdqmr16(struct jdqmr16Info *jd){
    double *Vprev  = sp->Vprev;  int ldVprev = sp->ldVprev; /* Ritz vectors */
    
    double *L      = sp->L;                     /* Ritz values */
-   double *Lprev  = sp->Lprev;                 /* Ritz values */
    
    double *R  = sp->R;  int ldR = sp->ldR; /* Ritz vectors */
    double *P  = sp->P;  int ldP = sp->ldP;
@@ -212,23 +214,30 @@ void jdqmr16(struct jdqmr16Info *jd){
    for(int i=0;i<maxIter;i++){   
 
       /* Inner sQMR16 to be used here in the future */
-      cudaMemcpy(P,R,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
+      //cudaMemcpy(P,R,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
+      innerSolver(P,ldP,R,ldR,V,ldV,L,numEvals,dim,jd);
+#if 0
+/*
+      printMatrixDouble(P,ldP,numEvals,"P");
+      printMatrixDouble(R,ldR,numEvals,"R");
+      printMatrixDouble(V,ldV,numEvals,"V");
+*/
+      return;
+
+#endif   
 
       if(basisSize == maxBasis){
-//      printMatrixDouble(W,dim,maxBasis,"W");
-//      printMatrixDouble(H,ldH,ldH,"H");
-      
-         restart(W, ldW, H, ldH, Vprev, ldVprev, Lprev,
+         /* no space left - Restart basis */
+         restart(W, ldW, H, ldH, Vprev, ldVprev, NULL ,
                   V, ldV, L, AW, ldAW, &basisSize, maxBasis, numEvals, dim, jd);
       }
 
       /* Enrich basis with new vectors*/    
       expandBasis(W, ldW, H, ldH, P, ldP, AW, ldAW, basisSize, dim,numEvals, jd);
-      basisSize++;
+      //basisSize++;
       
       /* keep previous ritz vectors for restarting purposes*/
       cudaMemcpy(Vprev,V,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
-      cudaMemcpy(Lprev,L,sizeof(double)*numEvals,cudaMemcpyDeviceToDevice);
       /* Find new Ritz pairs */
       eigH(V, ldV, L, W,ldW, H, ldH, numEvals, basisSize,jd);  // first approximation of eigevectors
       /* Residual calculation */
@@ -240,16 +249,7 @@ void jdqmr16(struct jdqmr16Info *jd){
 
 
 #if 1
-//if(i>3){
-//   printMatrixDouble(V,ldV,numEvals,"V");
    printMatrixDouble(L,numEvals,1,"L");
- //  printMatrixDouble(Vprev,ldVprev,numEvals,"Vprev");
-//   printMatrixDouble(Lprev,numEvals,1,"Lprev");
-   //printMatrixDouble(R,ldR,numEvals,"R");
-//   printMatrixDouble(W,ldW,basisSize*numEvals,"W");
-//   printMatrixDouble(H,ldH,ldH,"H");
-
-//}
 #endif
          
 

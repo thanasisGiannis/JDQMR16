@@ -103,16 +103,15 @@ void restart(double *W, int ldW, double *H, int ldH,
 
    struct restartSpace *spRestart = jd->spRestart;
 
-   //cudaMemset(W,0,sizeof(double)*ldW*maxBasisSize*numEvals);
-   cudaMemset(H,0,sizeof(double)*ldH*maxBasisSize*numEvals);
-
-
    /* W = [Vprev V W_1]*/
    *basisSize = 3;
 
    cudaMemcpy(W,Vprev,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
    cudaMemcpy(&W[0+numEvals*ldW],V,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
    cudaMemcpy(&W[0+2*numEvals*ldW],&W[0+(maxBasisSize-1)*numEvals*ldW],sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
+
+   cudaMemset(&W[0+3*numEvals*ldW],0,sizeof(double)*ldW*(maxBasisSize-3)*numEvals);
+   cudaMemset(H,0,sizeof(double)*ldH*maxBasisSize*numEvals);
 
    /* W = orth(W) */
 
