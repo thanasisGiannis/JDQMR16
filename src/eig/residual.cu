@@ -92,14 +92,8 @@ void residual(double *R, int ldR, double *V, int ldV, double *L, int numEvals, s
    double *alpha,*x;
 	int incx = 1;
 
-   /*
-      Replace this part with
-      cublasDdgmm(cublasHandle_t handle, cublasSideMode_t mode,
-                          int m, int n,
-                          const double          *A, int lda,
-                          const double          *x, int incx,
-                          double          *C, int ldc);
-    */   
+   cublasDdgmm(cublasH,CUBLAS_SIDE_RIGHT,dim,numEvals,VL,ldVL,L,1,VL,ldVL);
+/*
    for(int i=0;i<numEvals;i++){
 		
 		alpha = &hL[i];
@@ -107,7 +101,7 @@ void residual(double *R, int ldR, double *V, int ldV, double *L, int numEvals, s
 		
 		cublasDscal(cublasH,dim,alpha,x,incx);
 	}
-
+*/
    // R = AV
 
    double one  = 1.0;

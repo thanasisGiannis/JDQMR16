@@ -14,7 +14,8 @@ void printMatrixDouble(double *matrix, int rows, int cols, char *name){
     for(int row = 0 ; row < rows ; row++){
         for(int col = 0 ; col < cols ; col++){
             double Areg = hmatrix[row + col*rows];
-            printf("%s(%d,%d) = %.50lf;\n", name, row+1, col+1, Areg);
+//            printf("%s(%d,%d) = %.50lf;\n", name, row+1, col+1, Areg);
+            printf("%s(%d,%d) = %e;\n", name, row+1, col+1, Areg);
         }
     }
 

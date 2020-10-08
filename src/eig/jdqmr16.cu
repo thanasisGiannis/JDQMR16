@@ -215,29 +215,22 @@ void jdqmr16(struct jdqmr16Info *jd){
       cudaMemcpy(P,R,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
 
       if(basisSize == maxBasis){
-  
-//         printMatrixDouble(Vprev,ldVprev,numEvals,"Vprev");
-//         printMatrixDouble(V,ldV,numEvals,"V");
+//      printMatrixDouble(W,dim,maxBasis,"W");
+//      printMatrixDouble(H,ldH,ldH,"H");
+      
          restart(W, ldW, H, ldH, Vprev, ldVprev, Lprev,
-                  V, ldV, L, &basisSize, maxBasis, numEvals, dim, jd);
-//         printMatrixDouble(W,ldW,basisSize*numEvals,"W");   
-//         printMatrixDouble(H,ldH,ldH,"H");
-         //return;
-//         break;
-         printMatrixDouble(L,numEvals,1,"L");
-//         printf("Restart\n");
+                  V, ldV, L, AW, ldAW, &basisSize, maxBasis, numEvals, dim, jd);
       }
 
       /* Enrich basis with new vectors*/    
       expandBasis(W, ldW, H, ldH, P, ldP, AW, ldAW, basisSize, dim,numEvals, jd);
       basisSize++;
-
+      
       /* keep previous ritz vectors for restarting purposes*/
       cudaMemcpy(Vprev,V,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
       cudaMemcpy(Lprev,L,sizeof(double)*numEvals,cudaMemcpyDeviceToDevice);
       /* Find new Ritz pairs */
       eigH(V, ldV, L, W,ldW, H, ldH, numEvals, basisSize,jd);  // first approximation of eigevectors
-      
       /* Residual calculation */
       residual(R, ldR, V, ldV, L, numEvals, jd); 
 

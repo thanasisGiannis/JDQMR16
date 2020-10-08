@@ -28,7 +28,6 @@ void expandBasis_init(double *W, int ldW, double *H, int ldH, double *P, int ldP
    cudaMalloc((void**)&(spExpandBasis->WTP),sizeof(double)*maxBasisSize*numEvals*numEvals);
    spExpandBasis->ldWTP = maxBasisSize*numEvals;
 
-
    /* P = orth(P) */
    double *d_tau   = spExpandBasis->d_tau;
    int    *devInfo = spExpandBasis->devInfo;
