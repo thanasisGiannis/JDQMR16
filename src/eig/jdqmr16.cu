@@ -52,6 +52,14 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    /* Half precision matrix creation */
    CUDA_CALL(double2halfMat(A->devValuesH, A->nnz, A->devValuesD, A->nnz, A->nnz, 1));
 
+   /* find norm of matrix */
+   jd->normMatrix = 0;
+   double *val = A->values;
+   for(int i=0; i<A->nnz; i++){
+      if(abs(val[i]) > jd->normMatrix){
+         jd->normMatrix = abs(val[i]);      
+      }
+   }
    /* allocate device memory for solver */
    jd->sp   = (struct devSolverSpace*)malloc(sizeof(struct devSolverSpace));
    jd->gpuH = (struct gpuHandler*)malloc(sizeof(struct gpuHandler));
@@ -205,12 +213,21 @@ void jdqmr16(struct jdqmr16Info *jd){
    double *P  = sp->P;  int ldP = sp->ldP;
    double *AW = sp->AW; int ldAW = sp->ldAW;
 
-   int     dim      = A->dim;       /* dimension of the problem */
-   int     numEvals = jd->numEvals; /* number of wanted eigenvalues */
-   int     maxBasis = jd->maxBasis; /* maximum size of GD */
-   int     maxIter  = jd->maxIter;  /* number of maximum iterations of GD */
-   int     basisSize = 1;           /* basis size in blocks */
-   
+   int     dim       = A->dim;         /* dimension of the problem */
+   int     numEvals  = jd->numEvals;   /* number of wanted eigenvalues */
+   int     maxBasis  = jd->maxBasis;   /* maximum size of GD */
+   int     maxIter   = jd->maxIter;    /* number of maximum iterations of GD */
+   int     basisSize = 1;              /* basis size in blocks */
+   double  tol       = jd->tol;        /* tolerance of convergence */
+   double  normA     = jd->normMatrix; /* norm of sparse matrix */
+   double  maxerr;
+   int     iter      = 0;
+
+   jd->numMatVecsfp64 = 0;
+   jd->numMatVecsfp16 = 0;
+
+   double *normr = (double*)malloc(sizeof(double)*numEvals);
+
    // Step 0.1: Initialize matrices and basis
    initBasis(W,ldW,H,ldH,V,ldV,L, AW, ldAW, dim,maxBasis,numEvals,jd); // basis initilization and H creation
 
@@ -221,14 +238,6 @@ void jdqmr16(struct jdqmr16Info *jd){
    
    /* main loop of JDQMR */
    for(int i=0;i<maxIter;i++){   
-
-#if 1
-
-   printf("%----------\n Iteration=%d\n",i);
-   printMatrixDouble(L,numEvals,1,"L");
-#endif
-
-
       /* Inner sQMR16 to be used here in the future */
       //cudaMemcpy(P,R,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
       innerSolver(P,ldP,R,ldR,V,ldV,L,numEvals,dim,jd);
@@ -250,11 +259,38 @@ void jdqmr16(struct jdqmr16Info *jd){
       /* Residual calculation */
       residual(R, ldR, V, ldV, L, numEvals, jd); 
 
+      /* convergence check */
+      int    numConverged = 0;
+      for(int j=0;j<numEvals;j++){
+         cublasDnrm2(jd->gpuH->cublasH,dim,&R[0+j*ldR], 1, &normr[j]);
+         if(normr[j] < tol*normA){
+            numConverged++;
+         }
+      }
+
+
+      if(numConverged == numEvals){
+         break;
+      }
+         
+      iter++; 
+         
    }
 
 
+   /* Get eigenpairs back */
 
-         
+#if 1
+
+
+for(int i=0;i<numEvals;i++){
+   printf("||R[:,%d]||: %e\n",i,normr[i]);
+}
+printMatrixDouble(L,numEvals,1,"L");
+
+printf("Iterations=%d \nTolerance=%e\nnormA=%e\n",iter,tol,normA);
+printf("fp64 matVecs=%d\nfp16 matVecs=%d\n",jd->numMatVecsfp64,jd->numMatVecsfp16);
+#endif         
 
 
 }

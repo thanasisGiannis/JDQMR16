@@ -50,6 +50,24 @@ struct devSolverSpace{
    int *lockedVals;  // binary matrix which points which evals are converged 
 };
 
+
+struct sqmrSpace{
+
+   void *delta; 
+   void *r;     
+   void *d;     
+   void *w;     
+   size_t bufferSize;
+   void *buffer;
+
+
+   cusparseSpMatDescr_t descrA;
+   cusparseDnVecDescr_t descrd;
+   cusparseDnVecDescr_t descrw;
+
+
+};
+
 struct innerSolverSpace{
 
    double *B;    int ldB;
@@ -58,9 +76,11 @@ struct innerSolverSpace{
    double *maxB; 
    int    *normIndexB;
 
-   half *X16;// CUDA_CALL(cudaMalloc((void**)&X16,sizeof(half)*dim));
-   half *B16;// CUDA_CALL(cudaMalloc((void**)&B16,sizeof(half)*dim));
+   half *X16;
+   half *B16;
   
+   struct sqmrSpace        *spSQmr;
+
 };
 
 struct restartSpace{
@@ -148,11 +168,17 @@ struct initBasisSpace{
 };
 
 struct jdqmr16Info {
+   double *devL;
+   double *devQ;
+
+   double *L;
+   double *Q;
+
    int numEvals =  1;
    int maxBasis =  15;
    int maxIter  =  1000;
-   int tol      =  1e-04;
-
+   double tol      =  1e-04;
+   double normMatrix = 0;
    struct jdqmr16Matrix  *matrix;
    struct devSolverSpace *sp;
    struct gpuHandler     *gpuH;
@@ -163,6 +189,9 @@ struct jdqmr16Info {
    struct expandBasisSpace *spExpandBasis;
    struct restartSpace     *spRestart;
    struct innerSolverSpace *spInnerSolver;
+
+   int    numMatVecsfp64 = 0;
+   int    numMatVecsfp16 = 0;
 
 };
 

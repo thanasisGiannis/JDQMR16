@@ -93,15 +93,6 @@ void residual(double *R, int ldR, double *V, int ldV, double *L, int numEvals, s
 	int incx = 1;
 
    cublasDdgmm(cublasH,CUBLAS_SIDE_RIGHT,dim,numEvals,VL,ldVL,L,1,VL,ldVL);
-/*
-   for(int i=0;i<numEvals;i++){
-		
-		alpha = &hL[i];
-		x 	   = &(spRes->VL[0+spRes->ldVL*i]);
-		
-		cublasDscal(cublasH,dim,alpha,x,incx);
-	}
-*/
    // R = AV
 
    double one  = 1.0;
@@ -109,7 +100,7 @@ void residual(double *R, int ldR, double *V, int ldV, double *L, int numEvals, s
 
    cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,spRes->descrA,spRes->descrV,&zero,spRes->descrR,CUDA_R_64F,CUSPARSE_COOMM_ALG2,spRes->buffer);
-
+   jd->numMatVecsfp64 += numEvals;
 
    /* R = R-VL */
    double minus_one = -1.0;

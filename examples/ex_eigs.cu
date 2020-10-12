@@ -14,6 +14,8 @@
 #include "../include/jdqmr16.h"
 #include "include/mmio.h"
 
+#include <time.h>
+
 
 void quicksort(double *val ,int first,int last , int *I, int *J);
 int main(){
@@ -21,9 +23,9 @@ int main(){
 //	char *mName = "MTX_FILES/1138_bus.mtx"; //1138
 //	char *mName = "MTX_FILES/msc04515.mtx"; //4,515
 //	char *mName = "MTX_FILES/494_bus.mtx"; // 494
-	char *mName = "MTX_FILES/nos4.mtx"; // 100
+//	char *mName = "MTX_FILES/nos4.mtx"; // 100
 //	char *mName = "MTX_FILES/bcsstk01.mtx"; //48
-//	char *mName = "MTX_FILES/finan512.mtx"; //74752
+	char *mName = "MTX_FILES/finan512.mtx"; //74752
 //	char *mName = "MTX_FILES/Andrews.mtx"; 
 //	char *mName = "MTX_FILES/nd24k.mtx"; 
 //	char *mName = "MTX_FILES/Lap7p1M.mtx"; 
@@ -127,15 +129,22 @@ int main(){
 
    struct jdqmr16Info* jd = (struct jdqmr16Info*)malloc(sizeof(struct jdqmr16Info));
 
-   jd->numEvals = 5;     // number of wanted eigenvalues
+   jd->numEvals = 50;     // number of wanted eigenvalues
    jd->maxBasis = 15;    // maximum size of JD basis
-   jd->maxIter  = 30;  // maximum number of JD iterations
+   jd->maxIter  = 1000;  // maximum number of JD iterations
    jd->tol      = 1e-08; // tolerance of the residual
    jd->matrix   = A;     // data of matrix
 
 
    init_jdqmr16(jd);
+
+   time_t start = time(NULL);
+
    jdqmr16(jd);
+
+   time_t end = time(NULL);
+   printf("Took %f seconds\n", difftime(end, start));
+
    destroy_jdqmr16(jd);
 
 

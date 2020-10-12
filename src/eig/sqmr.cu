@@ -140,44 +140,6 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
    cublasSetPointerMode(cublasH, CUBLAS_POINTER_MODE_HOST);
    cudaDeviceSynchronize();
 
-#if 0
-   half *t = x;
-   cudaMalloc((void**)&(spsqmr->delta),sizeof(half)*dim);
-   cudaMalloc((void**)&(spsqmr->r),sizeof(half)*dim);
-   cudaMalloc((void**)&(spsqmr->d),sizeof(half)*dim);
-   cudaMalloc((void**)&(spsqmr->w),sizeof(half)*dim);
-
-   half *delta = (half*)spsqmr->delta;
-   half *r = (half*)spsqmr->r;     
-   half *d = (half*)spsqmr->d;     
-   half *w = (half*)spsqmr->w;     
-
-   /* cusparse data initilization */
-   struct jdqmr16Matrix  *A = jd->matrix;
-   cusparseCreateCoo(&(spsqmr->descrA),dim,dim,A->nnz,A->devRows,A->devCols,A->devValuesH,
-							CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_16F);
-
-
-	cusparseCreateDnVec(&(spsqmr->descrd),dim,(void*)d,CUDA_R_16F);
-	cusparseCreateDnVec(&(spsqmr->descrw),dim,(void*)w,CUDA_R_16F);
-
-   cusparseSpMV_bufferSize(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,
-                        &one,spsqmr->descrA,spsqmr->descrd,&zero,
-                        spsqmr->descrw,CUDA_R_16F,CUSPARSE_COOMV_ALG,&spsqmr->bufferSize);
-
-
-   cusparseSpMatDescr_t descrA = spsqmr->descrA;
-   cusparseDnVecDescr_t descrd = spsqmr->descrd;
-   cusparseDnVecDescr_t descrw = spsqmr->descrw;
-
-   size_t bufferSize = spsqmr->bufferSize;// = spsqmr->bufferSize;
-   void *buffer = spsqmr->buffer;// = spsqmr->buffer;
-
-   assert(spsqmr->bufferSize>=0);
-   cudaMalloc((void**)&spsqmr->buffer,spsqmr->bufferSize);
-
-#else
-
 
    half *t = x;
    half *delta = (half*)spsqmr->delta;
@@ -194,8 +156,6 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
    size_t bufferSize = spsqmr->bufferSize;// = spsqmr->bufferSize;
    void *buffer = spsqmr->buffer;// = spsqmr->buffer;
 
-
-#endif
 
    /* r = -b */
    cudaMemcpy(r,b,sizeof(half)*dim,cudaMemcpyDeviceToDevice);
@@ -217,7 +177,7 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
       cusparseSpMV(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,descrA,descrd,&zero,descrw,CUDA_R_16F,
              CUSPARSE_COOMV_ALG,buffer);
-
+      jd->numMatVecsfp16++;
 
       /* sigma = d'*w */
       CUBLAS_CALL(cublasDotEx(cublasH,dim,d,CUDA_R_16F,1,w,CUDA_R_16F,1,&tmpScalar,CUDA_R_16F,CUDA_R_32F));
@@ -319,11 +279,5 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
 
    }
 
-#if 0
-   cudaFree(spsqmr->buffer);
-   cudaFree(spsqmr->w);
-   cudaFree(spsqmr->delta);
-   cudaFree(spsqmr->r);
-   cudaFree(spsqmr->d);
-#endif
+
 }
