@@ -34,6 +34,10 @@ void innerSolver_init(double *P, int ldP, double *R, int ldR,
    CUDA_CALL(cudaMalloc((void**)&(spInnerSolver->X16),sizeof(half)*dim));
    CUDA_CALL(cudaMalloc((void**)&(spInnerSolver->B16),sizeof(half)*dim));
   
+   // init sQMR 
+   spInnerSolver->spSQmr = (struct sqmrSpace *)malloc(sizeof(struct sqmrSpace));
+   sqmr_init(spInnerSolver->X16, dim, spInnerSolver->B16, dim, dim, 0, jd);
+
 
 }
 
@@ -41,6 +45,9 @@ void innerSolver_destroy(struct jdqmr16Info *jd){
 
    struct innerSolverSpace *spInnerSolver = jd->spInnerSolver;
 
+   
+   sqmr_destroy(jd);
+   free(spInnerSolver->spSQmr);
    cudaFree(spInnerSolver->X16);
    cudaFree(spInnerSolver->B16);
    cudaFree(spInnerSolver->B);

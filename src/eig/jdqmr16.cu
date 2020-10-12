@@ -122,6 +122,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
 void destroy_jdqmr16(struct jdqmr16Info *jd){
 
    /* destroy inner functions */
+   //sqrm_destroy(jd);
    innerSolver_destroy(jd);
    restart_destroy(jd);
    expandBasis_destroy(jd);
@@ -173,6 +174,7 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
    CUDA_CALL(cudaFree(sp->V));
    CUDA_CALL(cudaFree(sp->L));
 
+   free(jd->spInnerSolver);
    free(jd->spRestart);
    free(jd->spExpandBasis);
    free(jd->spInitBasis);
