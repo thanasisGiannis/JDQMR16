@@ -1,12 +1,17 @@
-#include "../../include/jdqmr16.h"
-#include "../include/helper.h"
 
 #include <stdio.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <curand.h>
+#include <cuda_fp16.h>
+
+
+#include "../matrix/double2halfMat.h"
+#include "../../include/jdqmr16.h"
+#include "../include/helper.h"
 
 #include "innerSolver.h"
+#include "sqmr.h"
 
 void innerSolver_init(double *P, int ldP, double *R, int ldR, 
                   double *V, int ldV, double *L,
@@ -99,7 +104,35 @@ For step 1 sQMR with early stopping is used
 
    /* At this point solve the numEvals systems */
    // in the near future this will be sQMR
-   CUDA_CALL(cudaMemcpy(X,B,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice));
+   
+   half *X16; CUDA_CALL(cudaMalloc((void**)&X16,sizeof(half)*dim));
+   half *B16; CUDA_CALL(cudaMalloc((void**)&B16,sizeof(half)*dim));
+   
+   for(int i=0;i<numEvals; i++){
+      CUDA_CALL(double2halfMat(X16, dim, &X[0+i*ldX], ldX, dim, 1));
+      CUDA_CALL(double2halfMat(B16, dim, &B[0+i*ldB], ldB, dim, 1));
+
+      sqmr(X16, ldX, B16, ldB, dim, 1.0, jd);
+
+#if 0
+      struct jdqmr16Matrix  *A = jd->matrix;
+      printMatrixHalf(A->devValuesH,A->nnz,1,"vals");   
+      printMatrixInt(A->devRows,A->nnz,1,"rows");   
+      printMatrixInt(A->devCols,A->nnz,1,"cols");   
+
+
+      printMatrixHalf(X16,dim,1,"x");
+      printMatrixHalf(B16,dim,1,"b");
+
+      exit(0);
+#endif
+      CUDA_CALL(half2doubleMat(&X[0+i*ldX], ldX, X16, dim, dim, 1));
+   }
+
+//   CUDA_CALL(cudaMemcpy(X,B,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice));
+
+   CUDA_CALL(cudaFree(X16));
+   CUDA_CALL(cudaFree(B16));
 
    /* P = X-V*V'*X */
    CUDA_CALL(cudaMemcpy(P,X,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice));

@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <cuda_fp16.h>
 
+#include "double2halfMat.h"
+
 __global__
 void __double2halfMat(half *A16, int ldA16, double *A, int ldA, int rows, int cols, int BLOCK);
 

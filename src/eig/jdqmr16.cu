@@ -220,6 +220,13 @@ void jdqmr16(struct jdqmr16Info *jd){
    /* main loop of JDQMR */
    for(int i=0;i<maxIter;i++){   
 
+#if 1
+
+   printf("%----------\n Iteration=%d\n",i);
+   printMatrixDouble(L,numEvals,1,"L");
+#endif
+
+
       /* Inner sQMR16 to be used here in the future */
       //cudaMemcpy(P,R,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
       innerSolver(P,ldP,R,ldR,V,ldV,L,numEvals,dim,jd);
@@ -241,14 +248,10 @@ void jdqmr16(struct jdqmr16Info *jd){
       /* Residual calculation */
       residual(R, ldR, V, ldV, L, numEvals, jd); 
 
-      
    }
 
 
 
-#if 1
-   printMatrixDouble(L,numEvals,1,"L");
-#endif
          
 
 

@@ -25,25 +25,28 @@
 
 #define CURAND_CALL(x) do { if((x)!=CURAND_STATUS_SUCCESS) { \
     printf("Error at %s:%d\n",__FILE__,__LINE__);\
-    return EXIT_FAILURE;}cudaDeviceSynchronize();} while(0)
+    exit(0);}cudaDeviceSynchronize();} while(0)
 
 #define CUBLAS_CALL(x) do { if((x)!=CUBLAS_STATUS_SUCCESS) { \
     printf("Error at %s:%d\n",__FILE__,__LINE__);\
-    return EXIT_FAILURE;}cudaDeviceSynchronize();} while(0)
+    exit(0);}cudaDeviceSynchronize();} while(0)
 
 #define CUSPARSE_CALL(x) do { if((x)!=CUSPARSE_STATUS_SUCCESS) { \
     printf("Error at %s:%d\n",__FILE__,__LINE__);\
-    return EXIT_FAILURE;}cudaDeviceSynchronize();} while(0)
+    exit(0);}cudaDeviceSynchronize();} while(0)
 
 #define CUSOLVER_CALL(x) do { if((x)!=CUSOLVER_STATUS_SUCCESS) { \
     printf("Error at %s:%d\n",__FILE__,__LINE__);\
-    return EXIT_FAILURE;}cudaDeviceSynchronize();} while(0)
+    exit(0);}cudaDeviceSynchronize();} while(0)
 
 
 
 #if 1
+#include <cuda_fp16.h>
+void printMatrixHalf(half *matrix16, int rows, int cols, char *name);
 void printMatrixDouble(double *matrix, int rows, int cols, char *name);
 void printMatrixInt(int *matrix, int rows, int cols, char *name);
+
 #endif
 
 #endif
