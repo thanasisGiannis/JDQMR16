@@ -31,12 +31,18 @@ void innerSolver_init(double *P, int ldP, double *R, int ldR,
    spInnerSolver->maxB       = (double*)malloc(sizeof(double));
    spInnerSolver->normIndexB = (int*)malloc(sizeof(int));
 
+   CUDA_CALL(cudaMalloc((void**)&(spInnerSolver->X16),sizeof(half)*dim));
+   CUDA_CALL(cudaMalloc((void**)&(spInnerSolver->B16),sizeof(half)*dim));
+  
+
 }
 
 void innerSolver_destroy(struct jdqmr16Info *jd){
 
    struct innerSolverSpace *spInnerSolver = jd->spInnerSolver;
 
+   cudaFree(spInnerSolver->X16);
+   cudaFree(spInnerSolver->B16);
    cudaFree(spInnerSolver->B);
    cudaFree(spInnerSolver->VTB);
    cudaFree(spInnerSolver->X);
@@ -102,11 +108,9 @@ For step 1 sQMR with early stopping is used
    }
 
 
-   /* At this point solve the numEvals systems */
-   // in the near future this will be sQMR
-   
-   half *X16; CUDA_CALL(cudaMalloc((void**)&X16,sizeof(half)*dim));
-   half *B16; CUDA_CALL(cudaMalloc((void**)&B16,sizeof(half)*dim));
+   /* At this point solve the numEvals systems using mixed precision */
+   half *X16 = spInnerSolver->X16;
+   half *B16 = spInnerSolver->B16;
    
    for(int i=0;i<numEvals; i++){
       CUDA_CALL(double2halfMat(X16, dim, &X[0+i*ldX], ldX, dim, 1));
@@ -114,25 +118,10 @@ For step 1 sQMR with early stopping is used
 
       sqmr(X16, ldX, B16, ldB, dim, 1.0, jd);
 
-#if 0
-      struct jdqmr16Matrix  *A = jd->matrix;
-      printMatrixHalf(A->devValuesH,A->nnz,1,"vals");   
-      printMatrixInt(A->devRows,A->nnz,1,"rows");   
-      printMatrixInt(A->devCols,A->nnz,1,"cols");   
-
-
-      printMatrixHalf(X16,dim,1,"x");
-      printMatrixHalf(B16,dim,1,"b");
-
-      exit(0);
-#endif
       CUDA_CALL(half2doubleMat(&X[0+i*ldX], ldX, X16, dim, dim, 1));
    }
 
 //   CUDA_CALL(cudaMemcpy(X,B,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice));
-
-   CUDA_CALL(cudaFree(X16));
-   CUDA_CALL(cudaFree(B16));
 
    /* P = X-V*V'*X */
    CUDA_CALL(cudaMemcpy(P,X,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice));

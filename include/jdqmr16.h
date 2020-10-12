@@ -36,13 +36,86 @@ struct gpuHandler{
 
 struct devSolverSpace{
    
-   double *Vprev; int ldVprev; // previous ritz vectors
+   double *Vprev; int ldVprev; // previous Ritz vectors
    double *V;     int ldV;     // ritz vectors
    double *L;                  // ritz values
    double *W;     int ldW;     // space of projection (in the JD iteration)
    double *H;     int ldH;     // projected matrix
+   double *R;     int ldR;     // EigenPair Residual Vectors
+
+   double *AW;    int ldAW;    // keeping AW for fast update of basis
+   double *P;     int ldP;     // P to expand basis
+
+
+   int *lockedVals;  // binary matrix which points which evals are converged 
 };
 
+struct innerSolverSpace{
+
+   double *B;    int ldB;
+   double *VTB;  int ldVTB;
+   double *X;    int ldX;      
+   double *maxB; 
+   int    *normIndexB;
+
+   half *X16;// CUDA_CALL(cudaMalloc((void**)&X16,sizeof(half)*dim));
+   half *B16;// CUDA_CALL(cudaMalloc((void**)&B16,sizeof(half)*dim));
+  
+};
+
+struct restartSpace{
+
+   double *d_tau;  
+   int    *devInfo;
+   double *d_work;
+   int lwork = 0;
+
+   cusparseSpMatDescr_t descrA;
+   cusparseDnMatDescr_t descrW;
+   cusparseDnMatDescr_t descrAW;
+
+   double *AW; 
+   int     ldAW;
+
+   size_t  bufferSize;
+   double *buffer;
+     
+};
+
+struct expandBasisSpace{
+   
+   double *AP; int ldAP;
+
+   /* P = P - W*W'*P */
+   double *WTP = NULL; int ldWTP;
+
+   /* P = orth(P) */
+   double *d_tau;
+   int    *devInfo;
+   double *d_work;
+   int lwork;
+
+   /* AP = A*P */
+   cusparseSpMatDescr_t descrA;
+   cusparseDnMatDescr_t descrP;
+   cusparseDnMatDescr_t descrAP;
+   void *buffer; size_t bufferSize;
+
+};
+
+
+struct residualSpace{
+
+   //double *AV = NULL; int ldAV;
+   double *VL = NULL; int ldVL;
+   double *hL = NULL;
+   cusparseSpMatDescr_t descrA;
+   cusparseDnMatDescr_t descrV;
+   cusparseDnMatDescr_t descrR;
+
+   void *buffer; size_t bufferSize;
+
+};
 
 struct eigHSpace{
    int     lwork;   
@@ -70,7 +143,6 @@ struct initBasisSpace{
    size_t   bufferSize = -1;
    size_t   bufferSizeTrans = -1;
    void    *externalBuffer;
-   void    *externalBufferTrans;
 
    double  *AV; int ldAV;
 };
@@ -85,8 +157,13 @@ struct jdqmr16Info {
    struct devSolverSpace *sp;
    struct gpuHandler     *gpuH;
 
-   struct initBasisSpace *spInitBasis;
-   struct eigHSpace      *spEigH;
+   struct initBasisSpace   *spInitBasis;
+   struct eigHSpace        *spEigH;
+   struct residualSpace    *spResidual;
+   struct expandBasisSpace *spExpandBasis;
+   struct restartSpace     *spRestart;
+   struct innerSolverSpace *spInnerSolver;
+
 };
 
 void init_jdqmr16(struct jdqmr16Info *jd);
