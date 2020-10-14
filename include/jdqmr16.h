@@ -59,8 +59,10 @@ struct sqmrSpace{
    void *w;     
    size_t bufferSize;
    void *buffer;
-
-
+   
+   void *VTd;
+   
+   
    cusparseSpMatDescr_t descrA;
    cusparseDnVecDescr_t descrd;
    cusparseDnVecDescr_t descrw;
@@ -76,8 +78,8 @@ struct innerSolverSpace{
    double *maxB; 
    int    *normIndexB;
 
-   half *X16;
-   half *B16;
+   void *X16;
+   void *B16;
   
    struct sqmrSpace        *spSQmr;
 
@@ -168,11 +170,11 @@ struct initBasisSpace{
 };
 
 struct jdqmr16Info {
-   double *devL;
-   double *devQ;
+//   double *devL;
+//   double *devQ;
 
-   double *L;
-   double *Q;
+//   double *L;
+//   double *Q;
 
    int numEvals =  1;
    int maxBasis =  15;
@@ -190,15 +192,18 @@ struct jdqmr16Info {
    struct restartSpace     *spRestart;
    struct innerSolverSpace *spInnerSolver;
 
-   int    numMatVecsfp64 = 0;
-   int    numMatVecsfp16 = 0;
+   int    numMatVecsfp64  = 0;
+   int    numMatVecsfp16  = 0;
+   int    outerIterations = 0;
+   int    innerIterations = 0;
 
+   int    useHalf = 1;
 };
 
 void init_jdqmr16(struct jdqmr16Info *jd);
 void destroy_jdqmr16(struct jdqmr16Info *jd);
 void jdqmr16(struct jdqmr16Info *jd);
-
+void jdqmr16_eigenpairs(double *V, int ldV, double *L, struct jdqmr16Info *jd);
 
 #endif
 

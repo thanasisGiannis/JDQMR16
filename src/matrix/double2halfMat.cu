@@ -13,8 +13,8 @@ void __half2doubleMat(double *A,int ldA, half *A16, int ldA16, int rows, int col
 cudaError_t half2doubleMat(double *A, int ldA, half *A16, int ldA16, int rows, int cols){
 
 	int BLOCK=1;
-	int maxThreadX = 16;
-	int maxThreadY = 1;//maxThreadX;
+	int maxThreadX = 8;
+	int maxThreadY = 4;//maxThreadX;
 
 	int maxGridX = (rows)/(BLOCK*maxThreadX)+1;
 	int maxGridY = (cols)/maxThreadY+1;
@@ -34,8 +34,8 @@ cudaError_t double2halfMat(half *A16, int ldA16, double *A, int ldA, int rows, i
 
    int BLOCK=1;
 	
-	int maxThreadX = 16;
-	int maxThreadY = 1;// maxThreadX;
+	int maxThreadX = 8;
+	int maxThreadY = 4;// maxThreadX;
 
 	int maxGridX = (rows)/(BLOCK*maxThreadX)+1;
 	int maxGridY = (cols)/maxThreadY+1;

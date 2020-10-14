@@ -31,7 +31,12 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    int     numEvals = jd->numEvals;
    int     maxBasis = jd->maxBasis;
 
-  
+   jd->outerIterations = 0;
+   jd->innerIterations = 0;
+
+   if(jd->useHalf !=0){
+      jd->useHalf = 1;
+   }
    /* if matrix is small */
    if(numEvals*maxBasis >= dim){
       jd->maxBasis = floor(dim/numEvals);
@@ -49,17 +54,10 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    CUDA_CALL(cudaMemcpy((void*)(A->devCols),(void*)cols,sizeof(int)*nnz,cudaMemcpyHostToDevice));
    CUDA_CALL(cudaMemcpy((void*)(A->devRows),(void*)rows,sizeof(int)*nnz,cudaMemcpyHostToDevice));
 
-   /* Half precision matrix creation */
-   CUDA_CALL(double2halfMat(A->devValuesH, A->nnz, A->devValuesD, A->nnz, A->nnz, 1));
 
-   /* find norm of matrix */
-   jd->normMatrix = 0;
-   double *val = A->values;
-   for(int i=0; i<A->nnz; i++){
-      if(abs(val[i]) > jd->normMatrix){
-         jd->normMatrix = abs(val[i]);      
-      }
-   }
+
+   //CUBLAS_CALL(cublas);
+
    /* allocate device memory for solver */
    jd->sp   = (struct devSolverSpace*)malloc(sizeof(struct devSolverSpace));
    jd->gpuH = (struct gpuHandler*)malloc(sizeof(struct gpuHandler));
@@ -122,6 +120,28 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    // init innerSolver
    jd->spInnerSolver = (struct innerSolverSpace*)malloc(sizeof(struct innerSolverSpace));
    innerSolver_init(sp->P, sp->ldP, sp->R, sp->ldR, sp->V, sp->ldV, sp->L, numEvals, dim,jd);
+
+
+   /* find norm of matrix */
+   jd->normMatrix = 0;
+   double *val = A->values;
+   for(int i=0; i<A->nnz; i++){
+      if(abs(val[i]) > jd->normMatrix){
+         jd->normMatrix = abs(val[i]);      
+      }
+   }
+
+   /* Half precision matrix creation */
+   double *vec; cudaMalloc((void**)&vec,(A->nnz)*sizeof(double));
+   cudaMemcpy(vec,A->devValuesD,(A->nnz)*sizeof(double),cudaMemcpyDeviceToDevice);
+   double alpha; 
+   if(jd->normMatrix > 5e+03){
+//   if(1){
+      alpha = 2048.0/(jd->normMatrix);
+      cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
+   }
+   CUDA_CALL(double2halfMat(A->devValuesH, A->nnz, vec, A->nnz, A->nnz, 1));
+   cudaFree(vec);
 
 
    return;
@@ -273,16 +293,15 @@ void jdqmr16(struct jdqmr16Info *jd){
          break;
       }
          
-      iter++; 
+
+      jd->outerIterations++;
          
    }
 
 
    /* Get eigenpairs back */
 
-#if 1
-
-
+#if 0
 for(int i=0;i<numEvals;i++){
    printf("||R[:,%d]||: %e\n",i,normr[i]);
 }
@@ -296,6 +315,16 @@ printf("fp64 matVecs=%d\nfp16 matVecs=%d\n",jd->numMatVecsfp64,jd->numMatVecsfp1
 }
 
 
+
+void jdqmr16_eigenpairs(double *V, int ldV, double *L, struct jdqmr16Info *jd){
+   
+   struct devSolverSpace* sp = jd->sp;
+
+   cudaMemcpy(V,sp->V,sizeof(double)*(jd->numEvals)*ldV,cudaMemcpyDeviceToHost);
+   cudaMemcpy(L,sp->L,sizeof(double)*(jd->numEvals),cudaMemcpyDeviceToHost);
+
+
+}
 
 
 

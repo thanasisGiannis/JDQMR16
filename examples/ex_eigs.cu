@@ -25,12 +25,21 @@ int main(){
 //	char *mName = "MTX_FILES/494_bus.mtx"; // 494
 //	char *mName = "MTX_FILES/nos4.mtx"; // 100
 //	char *mName = "MTX_FILES/bcsstk01.mtx"; //48
-	char *mName = "MTX_FILES/finan512.mtx"; //74752
-//	char *mName = "MTX_FILES/Andrews.mtx"; 
+//   char *mName = "MTX_FILES/ex33.mtx";
+//   char *mName = "MTX_FILES/shallow_water1.mtx";
 //	char *mName = "MTX_FILES/nd24k.mtx"; 
 //	char *mName = "MTX_FILES/Lap7p1M.mtx"; 
+//	char *mName = "MTX_FILES/nasa4704.mtx"; 
+//	char *mName = "MTX_FILES/nasa4704_b.mtx";
+//   char *mName = "MTX_FILES/mhd4800b.mtx";
 //	char *mName = "MTX_FILES/G3_circuit.mtx"; // 1,585,478
 	
+   /* primme matrices */
+//	char *mName = "MTX_FILES/finan512.mtx"; //74752
+//	char *mName = "MTX_FILES/Andrews.mtx"; 
+//	char *mName = "MTX_FILES/Lap7p1M.mtx"; // problem
+//	char *mName = "MTX_FILES/cfd1.mtx"; 
+	char *mName = "MTX_FILES/cfd2.mtx"; 
 
    struct jdqmr16Matrix *A = (struct jdqmr16Matrix *)malloc(sizeof(struct jdqmr16Matrix));
    
@@ -120,36 +129,60 @@ int main(){
 
 
    /* Preparing data for jdqmr16 */
-   A->values = vA;     // cpu values of matrix
-   A->rows   = rows;   // array of row indexing
-   A->cols   = cols;   // array of column indexing
+   A->values = vA;      // cpu values of matrix
+   A->rows   = rows;    // array of row indexing
+   A->cols   = cols;    // array of column indexing
    A->dim    = numRows; // or numCols (support for symmetric matrices)
    A->nnz    = nnz;     // number of nonzero elements
   
 
    struct jdqmr16Info* jd = (struct jdqmr16Info*)malloc(sizeof(struct jdqmr16Info));
 
-   jd->numEvals = 50;     // number of wanted eigenvalues
+   jd->numEvals = 1;     // number of wanted eigenvalues
    jd->maxBasis = 15;    // maximum size of JD basis
    jd->maxIter  = 1000;  // maximum number of JD iterations
    jd->tol      = 1e-08; // tolerance of the residual
    jd->matrix   = A;     // data of matrix
-
+   jd->useHalf  = 1;
 
    init_jdqmr16(jd);
 
+   printf("%%Finding eigenpairs...\n");
    time_t start = time(NULL);
 
    jdqmr16(jd);
 
    time_t end = time(NULL);
-   printf("Took %f seconds\n", difftime(end, start));
+   printf("%%Found them!\n");
+
+   double *V = (double*)malloc(sizeof(double)*(A->dim)*(jd->numEvals));
+   double *L = (double*)malloc(sizeof(double)*(jd->numEvals));
+   
+   jdqmr16_eigenpairs(V,A->dim,L, jd);
+
 
    destroy_jdqmr16(jd);
+
+   #if 1
+   printf("\n\n%%==========\n");
+   printf("\n\n%%-- EigenValues --\n");
+   for(int i=0;i<(jd->numEvals);i++){
+      printf("L[%d]=%e;\n",i,L[i]);
+   }
+   printf("\n\n%%----------\n");
+   printf("%%outerIterations=%d \n%%innerIterations=%d\n%%Tolerance=%e\n%%normA=%e\n",jd->outerIterations,jd->innerIterations,jd->tol,jd->normMatrix);
+   printf("%%fp64 matVecs=%d\n%%fp16 matVecs=%d\n",jd->numMatVecsfp64,jd->numMatVecsfp16);
+   printf("\n\n%%----------\n");
+   printf("%%==========\n");
+   printf("%%Wall clock time: %f seconds\n", difftime(end, start));
+   #endif         
+
 
 
    
    /* free memory */
+   free(L);
+   free(V);
    free(vA);
    free(rows);
    free(cols);   
