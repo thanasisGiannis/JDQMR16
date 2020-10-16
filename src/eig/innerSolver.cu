@@ -103,18 +103,19 @@ For step 1 sQMR with early stopping is used
    double zero      =  0.0;
    double one       =  1.0;
 
-   cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,numEvals,dim,&one,
-                           V, CUDA_R_64F,ldV,R,CUDA_R_64F,ldR,
-                           &zero,VTB,CUDA_R_64F,ldVTB,CUDA_R_64F,
-                           CUBLAS_GEMM_ALGO2);
-   
+   for(int j=0; j<numEvals; j++){
+      cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,numEvals,dim,&one,
+                              V, CUDA_R_64F,ldV,R,CUDA_R_64F,ldR,
+                              &zero,VTB,CUDA_R_64F,ldVTB,CUDA_R_64F,
+                              CUBLAS_GEMM_ALGO2);
+      
 
-   cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numEvals,&minus_one,
-                           V, CUDA_R_64F,ldV,VTB,CUDA_R_64F,ldVTB,
-                           &one,B,CUDA_R_64F,ldB,CUDA_R_64F,
-                           CUBLAS_GEMM_ALGO2);
+      cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numEvals,&minus_one,
+                              V, CUDA_R_64F,ldV,VTB,CUDA_R_64F,ldVTB,
+                              &one,B,CUDA_R_64F,ldB,CUDA_R_64F,
+                              CUBLAS_GEMM_ALGO2);
 
-
+   }
 
    if(jd->useHalf == 1){
       /* ==== FP16 SOLVER ==== */

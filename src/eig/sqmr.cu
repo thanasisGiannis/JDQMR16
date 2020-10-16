@@ -386,7 +386,7 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
    float thita_ = 0.0; 
 
    int    qmrMaxIt = 1000;
-   double tol      = 1e-03;
+   double tol      = 1e-08;
 
    
    float Thita_ = 0.0;

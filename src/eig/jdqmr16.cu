@@ -136,7 +136,6 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    cudaMemcpy(vec,A->devValuesD,(A->nnz)*sizeof(double),cudaMemcpyDeviceToDevice);
    double alpha; 
    if(jd->normMatrix > 5e+03){
-//   if(1){
       alpha = 2048.0/(jd->normMatrix);
       cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
    }
@@ -247,7 +246,7 @@ void jdqmr16(struct jdqmr16Info *jd){
    jd->numMatVecsfp16 = 0;
 
    double *normr = (double*)malloc(sizeof(double)*numEvals);
-
+printf("From new branch\n");
    // Step 0.1: Initialize matrices and basis
    initBasis(W,ldW,H,ldH,V,ldV,L, AW, ldAW, dim,maxBasis,numEvals,jd); // basis initilization and H creation
 
@@ -287,7 +286,13 @@ void jdqmr16(struct jdqmr16Info *jd){
             numConverged++;
          }
       }
-
+   
+      if(i%10 == 0){
+         for(int j=0;j<numEvals;j++){
+            printf("%%normr[%d]/normA = %e\n",i,normr[j]/normA);        
+         }
+         printf("-----\n");
+      }
 
       if(numConverged == numEvals){
          break;
