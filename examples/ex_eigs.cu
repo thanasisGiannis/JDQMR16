@@ -20,7 +20,7 @@
 void quicksort(double *val ,int first,int last , int *I, int *J);
 int main(){
 
-//	char *mName = "MTX_FILES/1138_bus.mtx"; //1138
+	char *mName = "MTX_FILES/1138_bus.mtx"; //1138
 //	char *mName = "MTX_FILES/msc04515.mtx"; //4,515
 //	char *mName = "MTX_FILES/494_bus.mtx"; // 494
 //	char *mName = "MTX_FILES/nos4.mtx"; // 100
@@ -39,7 +39,7 @@ int main(){
 //	char *mName = "MTX_FILES/Andrews.mtx"; 
 //	char *mName = "MTX_FILES/Lap7p1M.mtx"; // problem
 //	char *mName = "MTX_FILES/cfd1.mtx"; 
-	char *mName = "MTX_FILES/cfd2.mtx"; 
+//	char *mName = "MTX_FILES/cfd2.mtx"; 
 
    struct jdqmr16Matrix *A = (struct jdqmr16Matrix *)malloc(sizeof(struct jdqmr16Matrix));
    

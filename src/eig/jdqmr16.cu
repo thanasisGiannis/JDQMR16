@@ -135,8 +135,8 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    double *vec; cudaMalloc((void**)&vec,(A->nnz)*sizeof(double));
    cudaMemcpy(vec,A->devValuesD,(A->nnz)*sizeof(double),cudaMemcpyDeviceToDevice);
    double alpha; 
-   if(jd->normMatrix > 5e+03){
-//   if(1){
+//   if(jd->normMatrix > 5e+03){
+   if(1){
       alpha = 2048.0/(jd->normMatrix);
       cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
    }
@@ -288,6 +288,11 @@ void jdqmr16(struct jdqmr16Info *jd){
          }
       }
 
+      #if 1
+      for(int i=0;i<numEvals;i++){
+         printf("||R[:,%d]||: %e\n",i,normr[i]/normA);
+      }
+      #endif         
 
       if(numConverged == numEvals){
          break;

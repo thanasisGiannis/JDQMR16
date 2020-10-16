@@ -171,8 +171,8 @@ void sqmrD(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEva
       deltaScal2 = c*c*alpha;
       CUBLAS_CALL(cublasScalEx(cublasH,dim,&deltaScal1,CUDA_R_64F,delta,CUDA_R_64F,1,CUDA_R_64F));
       CUBLAS_CALL(cublasAxpyEx(cublasH,dim,&deltaScal2,CUDA_R_64F,d,CUDA_R_64F,1,delta,CUDA_R_64F,1,CUDA_R_64F));
-      /*  t  = t + delta */
-      
+ 
+     /*  t  = t + delta */
       CUBLAS_CALL(cublasAxpyEx(cublasH,dim,&one,CUDA_R_64F,delta,CUDA_R_64F,1,t,CUDA_R_64F,1,CUDA_R_64F));
 
       if(abs(g) < tol){
@@ -386,7 +386,7 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
    float thita_ = 0.0; 
 
    int    qmrMaxIt = 1000;
-   double tol      = 1e-03;
+   double tol      = 1e-08;
 
    
    float Thita_ = 0.0;
