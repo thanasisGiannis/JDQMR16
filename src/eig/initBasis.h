@@ -6,7 +6,7 @@ void initBasis_init(double *W, int ldW, double *H, int ldH, double *V, int ldV, 
                 int dim, int maxSizeW, int numEvals, struct jdqmr16Info *jd);
 
 void initBasis(double *W, int ldW, double *H, int ldH, double *V, int ldV, double *L, double *AW, int ldAW,
-                int dim, int maxSizeW, int numEvals, struct jdqmr16Info *jd);
+                int dim, int maxSizeW, int numEvals, int seed, struct jdqmr16Info *jd);
 
 void initBasis_destroy(struct jdqmr16Info *jd);
 

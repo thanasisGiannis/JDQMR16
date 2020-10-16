@@ -87,8 +87,8 @@ void expandBasis_destroy(struct jdqmr16Info *jd){
 
 }
 
-void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, double *AW, int ldAW,
-                int &basisSize, int dim, int numEvals, struct jdqmr16Info *jd){
+void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, double *Qlocked, int ldQlocked, int numLocked,
+                double *AW, int ldAW, int &basisSize, int dim, int numEvals, struct jdqmr16Info *jd){
 
    
    struct gpuHandler        *gpuH          = jd->gpuH;
@@ -98,13 +98,14 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, dou
    cusolverDnHandle_t     cusolverH = gpuH->cusolverH;
    cusparseHandle_t       cusparseH = gpuH->cusparseH;
 
-   /* P = P-W*W'*P */
+   /* P = -W*W'*P + P */
    double *WTP = spExpandBasis->WTP; int ldWTP = spExpandBasis->ldWTP;
    
    double one  = 1.0;
    double zero = 0.0;
 
-   for(int i=0; i<basisSize; i++){
+//   for(int i=0; i<basisSize; i++){
+   for(int i=0; i<1; i++){
       cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,basisSize*numEvals,numEvals,dim,&one,
                               W,CUDA_R_64F,ldW,P,CUDA_R_64F,ldP,&zero,
                               WTP,CUDA_R_64F,ldWTP,CUDA_R_64F,
@@ -112,6 +113,21 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, dou
       double minus_one = -1.0;
       cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,basisSize*numEvals,&minus_one,
                               W,CUDA_R_64F,ldW,WTP,CUDA_R_64F,ldWTP,&one,
+                              P,CUDA_R_64F,ldP,CUDA_R_64F,
+                              CUBLAS_GEMM_ALGO2);
+   }
+
+
+   /* P = - Qlocked*Qlocked'*P + P  */
+   for(int i=0; i<1; i++){
+      // using W'P same buffer space
+      cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numLocked,numEvals,dim,&one,
+                              Qlocked,CUDA_R_64F,ldQlocked,P,CUDA_R_64F,ldP,&zero,
+                              WTP,CUDA_R_64F,ldWTP,CUDA_R_64F,
+                              CUBLAS_GEMM_ALGO2);
+      double minus_one = -1.0;
+      cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numLocked,&minus_one,
+                              Qlocked,CUDA_R_64F,ldQlocked,WTP,CUDA_R_64F,ldWTP,&one,
                               P,CUDA_R_64F,ldP,CUDA_R_64F,
                               CUBLAS_GEMM_ALGO2);
    }

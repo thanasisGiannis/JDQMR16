@@ -86,6 +86,10 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    CUDA_CALL(cudaMalloc((void**)&sp->L,sizeof(double)*numEvals)); 
    CUDA_CALL(cudaMalloc((void**)&sp->R,sizeof(double)*numEvals*dim));                        sp->ldR     = dim;
 
+   CUDA_CALL(cudaMalloc((void**)&sp->Qlocked,sizeof(double)*numEvals*dim));                  sp->ldQlocked= dim;
+   CUDA_CALL(cudaMalloc((void**)&sp->Llocked,sizeof(double)*numEvals)); 
+   sp->numLocked = 0;
+
    CUDA_CALL(cudaMalloc((void**)&sp->AW,sizeof(double)*maxBasis*numEvals*dim));              sp->ldAW    = dim;
    CUDA_CALL(cudaMalloc((void**)&sp->P,sizeof(double)*numEvals*dim));                        sp->ldP     = dim;
    
@@ -149,7 +153,6 @@ void init_jdqmr16(struct jdqmr16Info *jd){
 void destroy_jdqmr16(struct jdqmr16Info *jd){
 
    /* destroy inner functions */
-   //sqrm_destroy(jd);
    innerSolver_destroy(jd);
    restart_destroy(jd);
    expandBasis_destroy(jd);
@@ -192,6 +195,9 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
    struct devSolverSpace *sp = jd->sp;
 
 
+   CUDA_CALL(cudaFree(sp->Qlocked));
+   CUDA_CALL(cudaFree(sp->Llocked)); 
+
    CUDA_CALL(cudaFree(sp->AW));
    CUDA_CALL(cudaFree(sp->P));
    CUDA_CALL(cudaFree(sp->R));
@@ -228,6 +234,10 @@ void jdqmr16(struct jdqmr16Info *jd){
    
    double *L      = sp->L;                     /* Ritz values */
    
+   double *Qlocked   = sp->Qlocked; int ldQlocked = sp->ldQlocked;
+   double *Llocked   = sp->Llocked;
+   int    &numLocked = sp->numLocked;
+
    double *R  = sp->R;  int ldR = sp->ldR; /* Ritz vectors */
    double *P  = sp->P;  int ldP = sp->ldP;
    double *AW = sp->AW; int ldAW = sp->ldAW;
@@ -246,9 +256,8 @@ void jdqmr16(struct jdqmr16Info *jd){
    jd->numMatVecsfp16 = 0;
 
    double *normr = (double*)malloc(sizeof(double)*numEvals);
-printf("From new branch\n");
    // Step 0.1: Initialize matrices and basis
-   initBasis(W,ldW,H,ldH,V,ldV,L, AW, ldAW, dim,maxBasis,numEvals,jd); // basis initilization and H creation
+   initBasis(W,ldW,H,ldH,V,ldV,L, AW, ldAW, dim,maxBasis,numEvals,1,jd); // basis initilization and H creation
 
    // Step 0.2: First approximation of eigenpairs
    eigH(V, ldV, L, W,ldW, H, ldH, numEvals, basisSize,jd);  // first approximation of eigevectors
@@ -267,7 +276,7 @@ printf("From new branch\n");
       }
 
       /* Enrich basis with new vectors*/    
-      expandBasis(W, ldW, H, ldH, P, ldP, AW, ldAW, basisSize, dim,numEvals, jd);
+      expandBasis(W, ldW, H, ldH, P, ldP, Qlocked, ldQlocked, numLocked, AW, ldAW, basisSize, dim,numEvals, jd);
       //basisSize++;
       
       /* keep previous ritz vectors for restarting purposes*/
@@ -280,20 +289,37 @@ printf("From new branch\n");
 
       /* convergence check */
       int    numConverged = 0;
+      numLocked = 0;
       for(int j=0;j<numEvals;j++){
          cublasDnrm2(jd->gpuH->cublasH,dim,&R[0+j*ldR], 1, &normr[j]);
          if(normr[j] < tol*normA){
+            /* temporary copy to Qlocked for developing */
+            cudaMemcpy(&Qlocked[0+j*ldQlocked],&V[0+j*ldV],sizeof(double)*dim,cudaMemcpyDeviceToDevice);
+            cudaMemcpy(&Llocked[j],&L[j],sizeof(double),cudaMemcpyDeviceToDevice);
+            numLocked++;
             numConverged++;
          }
       }
    
+
+      if(numLocked == numEvals){
+         /* RR projection with new eigenpairs and break */
+         cudaMemcpy(V,Qlocked,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
+         initBasis(W,ldW,H,ldH,V,ldV,L, AW, ldAW, dim,1,numEvals,0,jd); // basis initilization and H creation
+         eigH(V, ldV, L, W,ldW, H, ldH, numEvals, 1,jd);  // first approximation of eigevectors
+         residual(R, ldR, V, ldV, L, numEvals, jd); 
+         break;
+      }
+      numLocked = 0; // for testing
+
+#if 0
       if(i%10 == 0){
          for(int j=0;j<numEvals;j++){
             printf("%%normr[%d]/normA = %e\n",i,normr[j]/normA);        
          }
          printf("-----\n");
       }
-
+#endif
       if(numConverged == numEvals){
          break;
       }
@@ -306,10 +332,12 @@ printf("From new branch\n");
 
    /* Get eigenpairs back */
 
-#if 0
+#if 1
 for(int i=0;i<numEvals;i++){
+   cublasDnrm2(jd->gpuH->cublasH,dim,&R[0+i*ldR], 1, &normr[i]);
    printf("||R[:,%d]||: %e\n",i,normr[i]);
 }
+return;
 printMatrixDouble(L,numEvals,1,"L");
 
 printf("Iterations=%d \nTolerance=%e\nnormA=%e\n",iter,tol,normA);

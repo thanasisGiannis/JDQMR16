@@ -76,20 +76,22 @@ void initBasis_destroy(struct jdqmr16Info *jd){
 }
 
 void initBasis(double *W, int ldW, double *H, int ldH, double *V, int ldV, double *L, double *AW, int ldAW,
-                int dim, int maxSizeW, int numEvals, struct jdqmr16Info *jd){
+                int dim, int maxSizeW, int numEvals, int seed, struct jdqmr16Info *jd){
 
 
    struct gpuHandler *gpuH = jd->gpuH;   
    /* Step 1: Random initialization of V */
-   curandGenerator_t curandH = gpuH->curandH;
-	curandSetPseudoRandomGeneratorSeed(curandH,1234ULL); /* set Seed */
 
-	double  mean = 0.0;
-	double  stddev = max(dim,numEvals);
+   if(seed == 1){
+      curandGenerator_t curandH = gpuH->curandH;
+	   curandSetPseudoRandomGeneratorSeed(curandH,1234ULL); /* set Seed */
 
-   cudaMemset(V,0,dim*numEvals);
-	curandGenerateNormalDouble(curandH, V, dim*numEvals,mean,stddev); /* Generate dim*maxSizeW on device */
+	   double  mean = 0.0;
+	   double  stddev = max(dim,numEvals);
 
+      cudaMemset(V,0,dim*numEvals);
+	   curandGenerateNormalDouble(curandH, V, dim*numEvals,mean,stddev); /* Generate dim*maxSizeW on device */
+   }
    /* Step 2: Orthogonalization of V */
    cusolverDnHandle_t cusolverH = gpuH->cusolverH;
    struct initBasisSpace *spInitBasis = jd->spInitBasis;
