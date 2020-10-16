@@ -34,20 +34,34 @@ struct gpuHandler{
    cusparseHandle_t    cusparseH;
 };
 
+struct lockSpace{
+   
+   double *QTV; int ldQTV;
+   double *QTR; int ldQTR; 
+   double *PR;  int ldPR;
+
+   double *Lh;
+   double *Llockedh;
+
+};
+
+
 struct devSolverSpace{
    
-   double *Vprev; int ldVprev; // previous Ritz vectors
-   double *V;     int ldV;     // ritz vectors
-   double *L;                  // ritz values
-   double *W;     int ldW;     // space of projection (in the JD iteration)
-   double *H;     int ldH;     // projected matrix
-   double *R;     int ldR;     // EigenPair Residual Vectors
+   double *Vprev;   int ldVprev;   // previous Ritz vectors
+   double *V;       int ldV;       // ritz vectors
+   double *L;                      // ritz values
+   double *W;       int ldW;       // space of projection (in the JD iteration)
+   double *H;       int ldH;       // projected matrix
+   double *R;       int ldR;       // EigenPair Residual Vectors
 
-   double *AW;    int ldAW;    // keeping AW for fast update of basis
-   double *P;     int ldP;     // P to expand basis
+   double *AW;      int ldAW;      // keeping AW for fast update of basis
+   double *P;       int ldP;       // P to expand basis
 
+   double *Qlocked; int ldQlocked; // Locked eigenvectors
+   double *Llocked;                // Locked eigenvalues
+   int     numLocked;              // number of locked eigenpairs 
 
-   int *lockedVals;  // binary matrix which points which evals are converged 
 };
 
 
@@ -191,6 +205,7 @@ struct jdqmr16Info {
    struct expandBasisSpace *spExpandBasis;
    struct restartSpace     *spRestart;
    struct innerSolverSpace *spInnerSolver;
+   struct lockSpace        *spLock;
 
    int    numMatVecsfp64  = 0;
    int    numMatVecsfp16  = 0;

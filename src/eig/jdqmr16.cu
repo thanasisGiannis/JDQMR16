@@ -13,6 +13,8 @@
 #include "expandBasis.h"
 #include "restart.h"
 #include "innerSolver.h"
+#include "locking.h"
+
 
 void init_jdqmr16(struct jdqmr16Info *jd){
    
@@ -125,6 +127,11 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    jd->spInnerSolver = (struct innerSolverSpace*)malloc(sizeof(struct innerSolverSpace));
    innerSolver_init(sp->P, sp->ldP, sp->R, sp->ldR, sp->V, sp->ldV, sp->L, numEvals, dim,jd);
 
+   // init locking
+   jd->spLock = (struct lockSpace*)malloc(sizeof(struct lockSpace));
+   lock_init(sp->V, sp->ldV, sp->L, sp->R, sp->ldR, NULL,sp->Qlocked, sp->ldQlocked,
+             sp->Llocked,sp->W,sp->ldW,sp->H,sp->ldH,sp->AW,sp->ldAW, 
+            sp->numLocked, numEvals, maxBasis, sp->numLocked, dim, 1e-08,jd);
 
    /* find norm of matrix */
    jd->normMatrix = 0;
@@ -153,6 +160,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
 void destroy_jdqmr16(struct jdqmr16Info *jd){
 
    /* destroy inner functions */
+   lock_destroy(jd);
    innerSolver_destroy(jd);
    restart_destroy(jd);
    expandBasis_destroy(jd);
@@ -289,18 +297,23 @@ void jdqmr16(struct jdqmr16Info *jd){
 
       /* convergence check */
       int    numConverged = 0;
-      numLocked = 0;
+      //numLocked = 0;
       for(int j=0;j<numEvals;j++){
          cublasDnrm2(jd->gpuH->cublasH,dim,&R[0+j*ldR], 1, &normr[j]);
+         /* 
          if(normr[j] < tol*normA){
-            /* temporary copy to Qlocked for developing */
+            // temporary copy to Qlocked for developing 
             cudaMemcpy(&Qlocked[0+j*ldQlocked],&V[0+j*ldV],sizeof(double)*dim,cudaMemcpyDeviceToDevice);
             cudaMemcpy(&Llocked[j],&L[j],sizeof(double),cudaMemcpyDeviceToDevice);
             numLocked++;
             numConverged++;
          }
+         */
       }
-   
+
+      /* locking new converged eigenpairs */
+      lock(V,ldV,L,R,ldR,normr,Qlocked,ldQlocked,Llocked,W,ldW,H,ldH,AW,ldAW,
+            numLocked,numEvals,maxBasis,basisSize,dim,tol*normA,jd);
 
       if(numLocked == numEvals){
          /* RR projection with new eigenpairs and break */
@@ -308,18 +321,22 @@ void jdqmr16(struct jdqmr16Info *jd){
          initBasis(W,ldW,H,ldH,V,ldV,L, AW, ldAW, dim,1,numEvals,0,jd); // basis initilization and H creation
          eigH(V, ldV, L, W,ldW, H, ldH, numEvals, 1,jd);  // first approximation of eigevectors
          residual(R, ldR, V, ldV, L, numEvals, jd); 
+         for(int j=0;j<numEvals;j++){
+            cublasDnrm2(jd->gpuH->cublasH,dim,&R[0+j*ldR], 1, &normr[j]);
+         }
+
          break;
       }
-      numLocked = 0; // for testing
+      //numLocked = 0; // for testing
 
-#if 0
-      if(i%10 == 0){
+      #if 1
+      if(i%1 == 0){
          for(int j=0;j<numEvals;j++){
             printf("%%normr[%d]/normA = %e\n",i,normr[j]/normA);        
          }
          printf("-----\n");
       }
-#endif
+      #endif
       if(numConverged == numEvals){
          break;
       }
@@ -328,22 +345,6 @@ void jdqmr16(struct jdqmr16Info *jd){
       jd->outerIterations++;
          
    }
-
-
-   /* Get eigenpairs back */
-
-#if 1
-for(int i=0;i<numEvals;i++){
-   cublasDnrm2(jd->gpuH->cublasH,dim,&R[0+i*ldR], 1, &normr[i]);
-   printf("||R[:,%d]||: %e\n",i,normr[i]);
-}
-return;
-printMatrixDouble(L,numEvals,1,"L");
-
-printf("Iterations=%d \nTolerance=%e\nnormA=%e\n",iter,tol,normA);
-printf("fp64 matVecs=%d\nfp16 matVecs=%d\n",jd->numMatVecsfp64,jd->numMatVecsfp16);
-#endif         
-
 
 }
 
