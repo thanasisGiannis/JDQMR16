@@ -70,9 +70,9 @@ void innerSolver_destroy(struct jdqmr16Info *jd){
    
 }
 
-void innerSolver(double *P, int ldP, double *R, int ldR, 
+void innerSolver(double *P, int ldP, double *R, int ldR, double *normr,
                   double *V, int ldV, double *L,
-                  int numEvals, int dim, struct jdqmr16Info *jd){
+                  int numEvals, int dim, double tol, struct jdqmr16Info *jd){
 /* 
 1)   Ax = (I-VV')*R/||(I-VV')*R||;
 2)   P   = (I-VV')*x;
@@ -104,16 +104,16 @@ For step 1 sQMR with early stopping is used
    double one       =  1.0;
 
    for(int j=0; j<numEvals; j++){
-      cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,numEvals,dim,&one,
+      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,numEvals,dim,&one,
                               V, CUDA_R_64F,ldV,R,CUDA_R_64F,ldR,
                               &zero,VTB,CUDA_R_64F,ldVTB,CUDA_R_64F,
-                              CUBLAS_GEMM_ALGO2);
+                              CUBLAS_GEMM_DEFAULT));
       
 
-      cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numEvals,&minus_one,
+      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numEvals,&minus_one,
                               V, CUDA_R_64F,ldV,VTB,CUDA_R_64F,ldVTB,
                               &one,B,CUDA_R_64F,ldB,CUDA_R_64F,
-                              CUBLAS_GEMM_ALGO2);
+                              CUBLAS_GEMM_DEFAULT));
 
    }
 
@@ -145,58 +145,27 @@ For step 1 sQMR with early stopping is used
          CUDA_CALL(half2doubleMat(&X[0+i*ldX], ldX, X16, dim, dim, 1));
       }
 
-//      printMatrixHalf(X16,dim,1,"X");
-//      printMatrixHalf(B16,dim,1,"B");
-
-      struct jdqmr16Matrix  *A = jd->matrix;
-//      printMatrixInt(A->devRows,A->nnz,1,"rows");
-//      printMatrixInt(A->devCols,A->nnz,1,"cols"); 
-
-/*
-      for(int j=0;j<A->nnz;j++){
-         double *vD = A->devValuesD;
-         half   *vH = A->devValuesH;
-         printMatrixHalf(&vH[j],1,1,"vH");
-         printMatrixDouble(&vD[j],1,1,"vD");
-         printf("--------\n");
-      }
- 
-*/
       /* P = X-V*V'*X */
       CUDA_CALL(cudaMemcpy(P,X,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice));
-      cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,numEvals,dim,&one,
+      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,numEvals,dim,&one,
                               V, CUDA_R_64F,ldV,R,CUDA_R_64F,ldR,
                               &zero,VTB,CUDA_R_64F,ldVTB,CUDA_R_64F,
-                              CUBLAS_GEMM_ALGO2);
+                              CUBLAS_GEMM_DEFAULT));
       
 
-      cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numEvals,&minus_one,
+      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numEvals,&minus_one,
                               V, CUDA_R_64F,ldV,VTB,CUDA_R_64F,ldVTB,
                               &one,P,CUDA_R_64F,ldP,CUDA_R_64F,
-                              CUBLAS_GEMM_ALGO2);
-
+                              CUBLAS_GEMM_DEFAULT));
+      return;
    }else{
       /* ==== FP64 SOLVER ==== */
-      double *X_ = (double*)spInnerSolver->X16;
-      double *B_ = (double*)spInnerSolver->B16;
-//      for(int i=0;i<numEvals; i++){
-      for(int i=0;i<1; i++){
-
-         CUDA_CALL(cudaMemcpy(X_, &X[0+i*ldX], dim*sizeof(double), cudaMemcpyDeviceToDevice));
-         CUDA_CALL(cudaMemcpy(B_, &B[0+i*ldB], dim*sizeof(double), cudaMemcpyDeviceToDevice));
+      double *X_;
+      double *B_;
+      for(int i=0;i<numEvals; i++){
+         X_ = &P[0+i*ldX];
+         B_ = &B[0+i*ldB];
          sqmrD(X_, dim, B_, dim, V, ldV, numEvals, dim, 1.0 , jd);
-/*
-         printMatrixDouble(X_,dim,1,"X");
-         printMatrixDouble(B_,dim,1,"B");
-         printMatrixDouble(V,dim,numEvals,"V");
-         struct jdqmr16Matrix  *A = jd->matrix;
-         printMatrixDouble(A->devValuesD,A->nnz,1,"vals");
-         printMatrixInt(A->devRows,A->nnz,1,"rows");
-         printMatrixInt(A->devCols,A->nnz,1,"cols");  
-*/
-         CUDA_CALL(cudaMemcpy(&X[0+i*ldX], X_, dim*sizeof(double), cudaMemcpyDeviceToDevice));
-   }
-
-      CUDA_CALL(cudaMemcpy(P,X,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice));
+      }
    }
 }

@@ -18,11 +18,12 @@ void sqmrD(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEva
 
 */
 
+   
    // this should be input in this function
    double ita    = 0.0;
    double thita_ = 0.0; 
-   int qmrMaxIt  = 1000;
-   double tol    = 1e-08;
+   int qmrMaxIt  = max(10*dim,1000);
+   double tol    = 1e-07;
 
    
    double Thita_ = 0.0;
@@ -97,52 +98,46 @@ void sqmrD(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEva
 
 
    /* r = -b */
-   cudaMemcpy(r,b,sizeof(double)*dim,cudaMemcpyDeviceToDevice);
-   cublasScalEx(cublasH,dim,&minus_one,CUDA_R_64F,r,CUDA_R_64F,1,CUDA_R_64F);
+   CUDA_CALL(cudaMemcpy(r,b,sizeof(double)*dim,cudaMemcpyDeviceToDevice));
+   CUBLAS_CALL(cublasScalEx(cublasH,dim,&minus_one,CUDA_R_64F,r,CUDA_R_64F,1,CUDA_R_64F));
 
    /* d = r */
-   cudaMemcpy(d,r,sizeof(double)*dim,cudaMemcpyDeviceToDevice);
-   cublasNrm2Ex(cublasH,dim,b,CUDA_R_64F,1,&g,CUDA_R_64F,CUDA_R_64F);
+   CUDA_CALL(cudaMemcpy(d,r,sizeof(double)*dim,cudaMemcpyDeviceToDevice));
+   CUBLAS_CALL(cublasNrm2Ex(cublasH,dim,b,CUDA_R_64F,1,&g,CUDA_R_64F,CUDA_R_64F));
 
 
-   cublasDotEx(cublasH,dim,(void*)r,CUDA_R_64F,1,(void*)d,CUDA_R_64F,1,(void*)&rho_,CUDA_R_64F,CUDA_R_64F);
-
+   CUBLAS_CALL(cublasDotEx(cublasH,dim,(void*)r,CUDA_R_64F,1,(void*)d,CUDA_R_64F,1,(void*)&rho_,CUDA_R_64F,CUDA_R_64F));
+   int exitLoop = 0;
    /* sQMR main iteration */
    for(int i=0; i<qmrMaxIt; i++){
       jd->innerIterations++;
-
       /* d = d - VVTd */
-      cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,1,dim,&one,
+      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,1,dim,&one,
                               V, CUDA_R_64F,ldV,d,CUDA_R_64F,dim,
                               &zero,VTd,CUDA_R_64F,numEvals,CUDA_R_64F,
-                              CUBLAS_GEMM_ALGO2);
+                              CUBLAS_GEMM_DEFAULT));
       
 
-      cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numEvals,&minus_one,
+      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,1,numEvals,&minus_one,
                               V, CUDA_R_64F,ldV,VTd,CUDA_R_64F,numEvals,
                               &one,d,CUDA_R_64F,dim,CUDA_R_64F,
-                              CUBLAS_GEMM_ALGO2);
-
+                              CUBLAS_GEMM_DEFAULT));
       /* w = A*d */
       cusparseSpMV(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,descrA,descrd,&zero,descrw,CUDA_R_64F,
              CUSPARSE_COOMV_ALG,buffer);
       jd->numMatVecsfp64++;
-
-
       /* w = w-VVTw */
-      cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,1,dim,&one,
+      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,1,dim,&one,
                               V, CUDA_R_64F,ldV,w,CUDA_R_64F,dim,
                               &zero,VTd,CUDA_R_64F,numEvals,CUDA_R_64F,
-                              CUBLAS_GEMM_ALGO2);
+                              CUBLAS_GEMM_DEFAULT));
       
 
-      cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numEvals,&minus_one,
+      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,1,numEvals,&minus_one,
                               V, CUDA_R_64F,ldV,VTd,CUDA_R_64F,numEvals,
                               &one,w,CUDA_R_64F,dim,CUDA_R_64F,
-                              CUBLAS_GEMM_ALGO2);
-
-
+                              CUBLAS_GEMM_DEFAULT));
       /* sigma = d'*w */
       CUBLAS_CALL(cublasDotEx(cublasH,dim,d,CUDA_R_64F,1,w,CUDA_R_64F,1,&sigma,CUDA_R_64F,CUDA_R_64F));
       /* alpha = rho_/sigma */
@@ -175,14 +170,14 @@ void sqmrD(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEva
       
       CUBLAS_CALL(cublasAxpyEx(cublasH,dim,&one,CUDA_R_64F,delta,CUDA_R_64F,1,t,CUDA_R_64F,1,CUDA_R_64F));
 
-      if(abs(g) < tol){
+      if(abs(g) < tol && exitLoop == 0){
          break;
       }
 
       gama = c*c*Thita_; 
       xi = c*c*alpha;    
       normt; 
-      cublasNrm2Ex(cublasH,dim,r,CUDA_R_64F,1,&normt,CUDA_R_64F,CUDA_R_64F); 
+      CUBLAS_CALL(cublasNrm2Ex(cublasH,dim,r,CUDA_R_64F,1,&normt,CUDA_R_64F,CUDA_R_64F)); 
       f = 1 + normt*normt; 
       PSI = gama*(PSI + FI);
       FI = gama*gama*FI + xi*xi*sigma;
@@ -203,30 +198,30 @@ void sqmrD(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEva
       }
 
 
-      if(rho_ < tol){
+      if(rho_ < tol && exitLoop == 0){
          break;
       }
 
 
       rkm = sqrt(g*g/f);
 
-       if( (g < rkm*max(0.99 * sqrt(f),sqrt(g/g_))) || (thita > thita_) || rkm<0.1*r00  || g < tol || rkm < tol){
-          break; 
+       if(exitLoop == 0 && ((g < rkm*max(0.99 * sqrt(f),sqrt(g/g_))) || (thita > thita_) || rkm<0.1*r00  || g < tol || rkm < tol)){
+         break; 
        }
 
       /*  w = r./norm(r); */
-      cudaMemcpy(w,r,sizeof(double)*dim,cudaMemcpyDeviceToDevice);
-      cublasNrm2Ex(cublasH,dim,w,CUDA_R_64F,1,&scalw,CUDA_R_64F,CUDA_R_64F); 
+      CUDA_CALL(cudaMemcpy(w,r,sizeof(double)*dim,cudaMemcpyDeviceToDevice));
+      CUBLAS_CALL(cublasNrm2Ex(cublasH,dim,w,CUDA_R_64F,1,&scalw,CUDA_R_64F,CUDA_R_64F)); 
       scalw = 1/scalw;
-      cublasScalEx(cublasH,dim,&scalw,CUDA_R_64F,w,CUDA_R_64F,1,CUDA_R_64F);
+      CUBLAS_CALL(cublasScalEx(cublasH,dim,&scalw,CUDA_R_64F,w,CUDA_R_64F,1,CUDA_R_64F));
 
          
       /* rho = r'*w; */
-      cublasDotEx(cublasH,dim,(void*)r,CUDA_R_64F,1,(void*)w,CUDA_R_64F,1,(void*)&rho,CUDA_R_64F,CUDA_R_64F);
+      CUBLAS_CALL(cublasDotEx(cublasH,dim,(void*)r,CUDA_R_64F,1,(void*)w,CUDA_R_64F,1,(void*)&rho,CUDA_R_64F,CUDA_R_64F));
       vita = rho/rho_;
 
       /* d = w + vita*d; */
-      cublasScalEx(cublasH,dim,&vita,CUDA_R_64F,d,CUDA_R_64F,1,CUDA_R_64F);
+      CUBLAS_CALL(cublasScalEx(cublasH,dim,&vita,CUDA_R_64F,d,CUDA_R_64F,1,CUDA_R_64F));
       CUBLAS_CALL(cublasAxpyEx(cublasH,dim,&one,CUDA_R_64F,w,CUDA_R_64F,1,d,CUDA_R_64F,1,CUDA_R_64F));
 
 
@@ -385,8 +380,8 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
    float ita    = 0.0;
    float thita_ = 0.0; 
 
-   int    qmrMaxIt = 1000;
-   double tol      = 1e-08;
+   int qmrMaxIt  = max(10*dim,1000);
+   double tol      = 1e-03;
 
    
    float Thita_ = 0.0;
@@ -429,7 +424,9 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
    half one  = __float2half(1.0);
    half zero = __float2half(0.0);
 
-
+   float minus_onef = -1.0;
+   float onef  = 1.0;
+   float zerof = 0.0;
 
    half *x = X;
    half *b = B;
@@ -461,16 +458,16 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
 
 
    /* r = -b */
-   cudaMemcpy(r,b,sizeof(half)*dim,cudaMemcpyDeviceToDevice);
-   cublasScalEx(cublasH,dim,&minus_one,CUDA_R_16F,r,CUDA_R_16F,1,CUDA_R_32F);
+   CUDA_CALL(cudaMemcpy(r,b,sizeof(half)*dim,cudaMemcpyDeviceToDevice));
+   CUBLAS_CALL(cublasScalEx(cublasH,dim,&minus_onef,CUDA_R_32F,r,CUDA_R_16F,1,CUDA_R_32F));
 
    /* d = r */
-   cudaMemcpy(d,r,sizeof(half)*dim,cudaMemcpyDeviceToDevice);
-   cublasNrm2Ex(cublasH,dim,b,CUDA_R_16F,1,&tmpScalar,CUDA_R_16F,CUDA_R_32F);
+   CUDA_CALL(cudaMemcpy(d,r,sizeof(half)*dim,cudaMemcpyDeviceToDevice));
+   CUBLAS_CALL(cublasNrm2Ex(cublasH,dim,b,CUDA_R_16F,1,&tmpScalar,CUDA_R_16F,CUDA_R_32F));
    g = __half2float(tmpScalar);
 
 
-   cublasDotEx(cublasH,dim,(void*)r,CUDA_R_16F,1,(void*)d,CUDA_R_16F,1,(void*)&tmpScalar,CUDA_R_16F,CUDA_R_32F);
+   CUBLAS_CALL(cublasDotEx(cublasH,dim,(void*)r,CUDA_R_16F,1,(void*)d,CUDA_R_16F,1,(void*)&tmpScalar,CUDA_R_16F,CUDA_R_32F));
    rho_ = __half2float(tmpScalar);
 
    /* sQMR main iteration */
@@ -524,7 +521,7 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
       gama = c*c*Thita_; 
       xi = c*c*alpha;    
       normt; 
-      cublasNrm2Ex(cublasH,dim,r,CUDA_R_16F,1,&tmpScalar,CUDA_R_16F,CUDA_R_32F); 
+      CUBLAS_CALL(cublasNrm2Ex(cublasH,dim,r,CUDA_R_16F,1,&tmpScalar,CUDA_R_16F,CUDA_R_32F)); 
       normt = __half2float(tmpScalar);
       f = 1 + normt*normt; 
       PSI = gama*(PSI + FI);
@@ -558,21 +555,21 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
        }
 
       /*  w = r./norm(r); */
-      cudaMemcpy(w,r,sizeof(half)*dim,cudaMemcpyDeviceToDevice);
-      cublasNrm2Ex(cublasH,dim,w,CUDA_R_16F,1,&tmpScalar,CUDA_R_16F,CUDA_R_32F); 
+      CUDA_CALL(cudaMemcpy(w,r,sizeof(half)*dim,cudaMemcpyDeviceToDevice));
+      CUBLAS_CALL(cublasNrm2Ex(cublasH,dim,w,CUDA_R_16F,1,&tmpScalar,CUDA_R_16F,CUDA_R_32F)); 
       scalw = 1/__half2float(tmpScalar);
-      cublasScalEx(cublasH,dim,&scalw,CUDA_R_32F,w,CUDA_R_16F,1,CUDA_R_32F);
+      CUBLAS_CALL(cublasScalEx(cublasH,dim,&scalw,CUDA_R_32F,w,CUDA_R_16F,1,CUDA_R_32F));
 
          
       /* rho = r'*w; */
-      cublasDotEx(cublasH,dim,(void*)r,CUDA_R_16F,1,(void*)w,CUDA_R_16F,1,(void*)&tmpScalar,CUDA_R_16F,CUDA_R_32F);
+      CUBLAS_CALL(cublasDotEx(cublasH,dim,(void*)r,CUDA_R_16F,1,(void*)w,CUDA_R_16F,1,(void*)&tmpScalar,CUDA_R_16F,CUDA_R_32F));
       rho = __half2float(tmpScalar);
       vita = rho/rho_;
 
 
 
       /* d = w + vita*d; */
-      cublasScalEx(cublasH,dim,&vita,CUDA_R_32F,d,CUDA_R_16F,1,CUDA_R_32F);
+      CUBLAS_CALL(cublasScalEx(cublasH,dim,&vita,CUDA_R_32F,d,CUDA_R_16F,1,CUDA_R_32F));
       CUBLAS_CALL(cublasAxpyEx(cublasH,dim,&one32,CUDA_R_32F,w,CUDA_R_16F,1,d,CUDA_R_16F,1,CUDA_R_32F));
 
 

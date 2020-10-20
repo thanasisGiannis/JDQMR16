@@ -106,30 +106,30 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, dou
 
 //   for(int i=0; i<basisSize; i++){
    for(int i=0; i<1; i++){
-      cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,basisSize*numEvals,numEvals,dim,&one,
+      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,basisSize*numEvals,numEvals,dim,&one,
                               W,CUDA_R_64F,ldW,P,CUDA_R_64F,ldP,&zero,
                               WTP,CUDA_R_64F,ldWTP,CUDA_R_64F,
-                              CUBLAS_GEMM_ALGO2);
+                              CUBLAS_GEMM_DEFAULT));
       double minus_one = -1.0;
-      cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,basisSize*numEvals,&minus_one,
+      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,basisSize*numEvals,&minus_one,
                               W,CUDA_R_64F,ldW,WTP,CUDA_R_64F,ldWTP,&one,
                               P,CUDA_R_64F,ldP,CUDA_R_64F,
-                              CUBLAS_GEMM_ALGO2);
+                              CUBLAS_GEMM_DEFAULT));
    }
 
 
    /* P = - Qlocked*Qlocked'*P + P  */
    for(int i=0; i<1; i++){
       // using W'P same buffer space
-      cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numLocked,numEvals,dim,&one,
+      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numLocked,numEvals,dim,&one,
                               Qlocked,CUDA_R_64F,ldQlocked,P,CUDA_R_64F,ldP,&zero,
                               WTP,CUDA_R_64F,ldWTP,CUDA_R_64F,
-                              CUBLAS_GEMM_ALGO2);
+                              CUBLAS_GEMM_DEFAULT));
       double minus_one = -1.0;
-      cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numLocked,&minus_one,
+      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numLocked,&minus_one,
                               Qlocked,CUDA_R_64F,ldQlocked,WTP,CUDA_R_64F,ldWTP,&one,
                               P,CUDA_R_64F,ldP,CUDA_R_64F,
-                              CUBLAS_GEMM_ALGO2);
+                              CUBLAS_GEMM_DEFAULT));
    }
 
    /* P = orth(P)  */
@@ -149,24 +149,24 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, dou
 
    /* H = [H W'*AP; P'*AW P'*AP*/
    // P'*AP   
-   cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,numEvals,dim,&one,
+   CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,numEvals,dim,&one,
                            P,CUDA_R_64F,ldP,AP,CUDA_R_64F,ldAP,&zero,
                            &H[basisSize*numEvals+(basisSize*numEvals)*ldH],CUDA_R_64F,ldH,CUDA_R_64F,
-                           CUBLAS_GEMM_ALGO2);
+                           CUBLAS_GEMM_DEFAULT));
 
 
    // W'*AP
-   cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,basisSize*numEvals,numEvals,dim,&one,
+   CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,basisSize*numEvals,numEvals,dim,&one,
                            W,CUDA_R_64F,ldW,AP,CUDA_R_64F,ldAP,&zero,
                            &H[0+(basisSize*numEvals)*ldH],CUDA_R_64F,ldH,CUDA_R_64F,
-                           CUBLAS_GEMM_ALGO2);
+                           CUBLAS_GEMM_DEFAULT));
 
 
    // P'*AW
-   cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,basisSize*numEvals,dim,&one,
+   CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,basisSize*numEvals,dim,&one,
                            P,CUDA_R_64F,ldP,AW,CUDA_R_64F,ldAW,&zero,
                            &H[basisSize*numEvals+0*ldH],CUDA_R_64F,ldH,CUDA_R_64F,
-                           CUBLAS_GEMM_ALGO2);
+                           CUBLAS_GEMM_DEFAULT));
 
 
    /* AW = [AW AP] */

@@ -58,7 +58,9 @@ struct devSolverSpace{
    double *AW;      int ldAW;      // keeping AW for fast update of basis
    double *P;       int ldP;       // P to expand basis
 
+   double *normr;                  // residual of the eigenpairs
    double *Qlocked; int ldQlocked; // Locked eigenvectors
+   int maxLockedVals;
    double *Llocked;                // Locked eigenvalues
    int     numLocked;              // number of locked eigenpairs 
 
@@ -213,12 +215,13 @@ struct jdqmr16Info {
    int    innerIterations = 0;
 
    int    useHalf = 1;
+   int    locking = 1;
 };
 
 void init_jdqmr16(struct jdqmr16Info *jd);
 void destroy_jdqmr16(struct jdqmr16Info *jd);
 void jdqmr16(struct jdqmr16Info *jd);
-void jdqmr16_eigenpairs(double *V, int ldV, double *L, struct jdqmr16Info *jd);
+void jdqmr16_eigenpairs(double *V, int ldV, double *L, double *normr, struct jdqmr16Info *jd);
 
 #endif
 

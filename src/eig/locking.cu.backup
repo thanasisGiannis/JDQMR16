@@ -63,7 +63,6 @@ void lock(double *V, int ldV, double *L, double *R, int ldR, double *normr,
       if(numLocked == numEvals){
          cudaMemcpy(Qlocked,V,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
       }
-
       return;
    }
    struct lockSpace *spLock = jd->spLock;
@@ -170,6 +169,7 @@ void lock(double *V, int ldV, double *L, double *R, int ldR, double *normr,
    cudaMemcpy(Llockedh,Llocked,sizeof(double)*numLocked,cudaMemcpyDeviceToHost);
 
    for(int i=0;i<numEvals;i++){
+      printf("%%E=%e normr=%e\n",E,normr[i]);
       if(normr[i] < E){
          double normrd;
          cublasDnrm2(jd->gpuH->cublasH,dim,&PR[0+i*ldR], 1, &normrd);
@@ -195,6 +195,7 @@ void lock(double *V, int ldV, double *L, double *R, int ldR, double *normr,
          }
 
          gama = min(gamap,gamad);
+//         printf("%e %e %e\n",gama,gamad,gamap);
 
          if(vita > tol && normrd < tol*(gamap/gama)-(tol*tol*numLocked)/gamad){
             /* lock eigenvalues */

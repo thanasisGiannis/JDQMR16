@@ -143,10 +143,10 @@ void restart(double *W, int ldW, double *H, int ldH,
 
 
    /* W = W'*AW */
-   cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,3*numEvals,3*numEvals,dim,&one,
+   CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,3*numEvals,3*numEvals,dim,&one,
                         W,CUDA_R_64F,ldW,AW,CUDA_R_64F,ldAW,&zero,
                         H,CUDA_R_64F,ldH,CUDA_R_64F,
-                        CUBLAS_GEMM_ALGO2);
+                        CUBLAS_GEMM_DEFAULT));
 
    /* AWp = AW */
    cudaMemcpy(AWp,AW,sizeof(double)*dim*3*numEvals,cudaMemcpyDeviceToDevice);
