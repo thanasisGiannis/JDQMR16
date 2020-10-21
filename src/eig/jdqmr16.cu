@@ -149,14 +149,25 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    double *vec; cudaMalloc((void**)&vec,(A->nnz)*sizeof(double));
    cudaMemcpy(vec,A->devValuesD,(A->nnz)*sizeof(double),cudaMemcpyDeviceToDevice);
    double alpha; 
-//   if(jd->normMatrix > 5e+03){
+
+//   printMatrixDouble(vec,A->nnz,1,"double");
+//   if(jd->normMatrix > 5e+03 || jd->normMatrix < 5e-02){
    if(1){
       alpha = 2048.0/(jd->normMatrix);
+/*
+      double result;
+      cublasDnrm2(*cublasH, dim,A->devValuesD, 1, &result);
+      alpha = 1.0/result;    
+*/
+
       cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
    }
    CUDA_CALL(double2halfMat(A->devValuesH, A->nnz, vec, A->nnz, A->nnz, 1));
+//   printMatrixHalf(A->devValuesH,A->nnz,1,"half");
+//   printf("alpha=%e\n",alpha);
    cudaFree(vec);
 
+//exit(0);
 
    return;
 }
@@ -287,14 +298,6 @@ void jdqmr16(struct jdqmr16Info *jd){
          /* no space left - Restart basis */
          restart(W, ldW, H, ldH, Vprev, ldVprev, NULL ,
                   V, ldV, L, AW, ldAW, &basisSize, maxBasis, numEvals, dim, jd);
-         #if 0
-            printf("%%-----\n");
-            printMatrixDouble(L,numEvals,1,"L");
-            for(int j=0;j<numEvals;j++){
-               printf("%%normr[%d]/normA = %e\n",i,normr[j]/normA);        
-            }
-            printf("%%-----\n");
-         #endif
       }
 
       /* Enrich basis with new vectors*/    
@@ -331,15 +334,11 @@ void jdqmr16(struct jdqmr16Info *jd){
             cublasDnrm2(jd->gpuH->cublasH,dim,&R[0+j*ldR], 1, &normr[j]);
          }
 
-         if(notFound == 0 ){
-            break;
-         }else{
-            numLocked -= notFound;
-         }
+         break;
       }
 
       #if 0
-      if(i%1 == 0){
+      if(i%10 == 0){
          for(int j=0;j<numEvals;j++){
             printf("%%normr[%d]/normA = %e\n",i,normr[j]/normA);        
          }

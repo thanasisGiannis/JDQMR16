@@ -1,106 +1,88 @@
+#include "../../include/jdqmr16.h"
+#include "../include/helper.h"
+
 #include <stdio.h>
 #include <cuda_fp16.h>
 
 #include "double2halfMat.h"
 
-__global__
-void __double2halfMat(half *A16, int ldA16, double *A, int ldA, int rows, int cols, int BLOCK);
 
 __global__
-void __half2doubleMat(double *A,int ldA, half *A16, int ldA16, int rows, int cols, int BLOCK);
+void __double2halfMat(half *A16, int ldA16, double *A, int ldA, int rows, int cols, int BLOCK){
+
+   int COL = blockIdx.y*blockDim.y+threadIdx.y;
+   int ROW = blockIdx.x*blockDim.x+threadIdx.x;
+
+   if (ROW < rows && COL < cols) {
+      float val = (float)A[ROW + COL*ldA];
+      A16[ROW + COL*ldA16] = __float2half(val);
+   }
+}
+
+__global__
+void __half2doubleMat(double *A,int ldA, half *A16, int ldA16, int rows, int cols, int BLOCK){
+
+   int COL = blockIdx.y*blockDim.y+threadIdx.y;
+   int ROW = blockIdx.x*blockDim.x+threadIdx.x;
+
+   if (ROW < rows && COL < cols) {
+      float val = __half2float(A16[ROW + COL*ldA16]);
+      A[ROW + COL*ldA] = (double)val;
+   }
+
+
+}
 
 
 cudaError_t half2doubleMat(double *A, int ldA, half *A16, int ldA16, int rows, int cols){
 
-	int BLOCK=1;
-	int maxThreadX = 8;
-	int maxThreadY = 4;//maxThreadX;
 
-	int maxGridX = (rows)/(BLOCK*maxThreadX)+1;
-	int maxGridY = (cols)/maxThreadY+1;
+   dim3 threadsPerBlock(rows,cols);
+   dim3 blocksPerGrid(1, 1);
+   if (rows*cols > 16){
 
-	dim3 gridSize = dim3(maxGridX,maxGridY);
-	dim3 blockSize = dim3(maxThreadX,maxThreadY);
+      if(cols>1){
+         threadsPerBlock.x = 8;
+         threadsPerBlock.y = 2;
+      }else{
+         threadsPerBlock.x = 16;
+         threadsPerBlock.y = 1;
 
-	__half2doubleMat<<< gridSize , blockSize >>>(A,ldA, A16,ldA16, rows, cols, BLOCK);
+      }
+      blocksPerGrid.x = ceil(double(rows)/double(threadsPerBlock.x));
+      blocksPerGrid.y = ceil(double(cols)/double(threadsPerBlock.y));
+   }
 
-	cudaDeviceSynchronize();
-	return cudaGetLastError();
+   __half2doubleMat<<<blocksPerGrid,threadsPerBlock>>>(A,ldA, A16,ldA16,rows,cols,1);
+   CUDA_CALL(cudaGetLastError());   
+   return cudaGetLastError();
 }
 
 
 
 cudaError_t double2halfMat(half *A16, int ldA16, double *A, int ldA, int rows, int cols){
 
-   int BLOCK=1;
-	
-	int maxThreadX = 8;
-	int maxThreadY = 4;// maxThreadX;
 
-	int maxGridX = (rows)/(BLOCK*maxThreadX)+1;
-	int maxGridY = (cols)/maxThreadY+1;
+   dim3 threadsPerBlock(rows,cols);
+   dim3 blocksPerGrid(1, 1);
+   if (rows*cols > 16){
+      if(cols>1){
+         threadsPerBlock.x = 8;
+         threadsPerBlock.y = 2;
+      }else{
+         threadsPerBlock.x = 16;
+         threadsPerBlock.y = 1;
 
-	dim3 gridSize  = dim3(maxGridX,maxGridY);
-	dim3 blockSize = dim3(maxThreadX,maxThreadY);
+      }
+      blocksPerGrid.x = ceil(double(rows)/double(threadsPerBlock.x));
+      blocksPerGrid.y = ceil(double(cols)/double(threadsPerBlock.y));
+   }
 
-   __double2halfMat<<< gridSize , blockSize >>>(A16, ldA16, A, ldA, rows, cols,BLOCK);
-
-	cudaDeviceSynchronize();
-	return cudaGetLastError();
-
+   __double2halfMat<<<blocksPerGrid,threadsPerBlock>>>(A16,ldA16, A,ldA,rows,cols,1);
+   CUDA_CALL(cudaGetLastError());   
+   return cudaGetLastError();
 }
 
 
-
-__global__
-void __double2halfMat(half *A16, int ldA16, double *A, int ldA, int rows, int cols, int BLOCK)
-{
-
-	int i = blockIdx.x*blockDim.x + threadIdx.x;
-	int j = blockIdx.y*blockDim.y + threadIdx.y;
-
-	i = i*BLOCK;
-	if (i >= rows) return;
-	if (j >= cols) return;
-
-   float val = (float)A[i+j*ldA];
-   A16[i+j*ldA16] = __float2half(val);
-
-   return;
-
-
-
-	for(int k=0;k<BLOCK;k++){
-		if( (i+k-1) >= rows)
-			break;
-		float val = (float)A[(i+k) +j*ldA];
-		A16[(i+k-1)+j*ldA16] = __float2half(val);
-	}
-	return ;
-}
-
-__global__
-void __half2doubleMat(double *A,int ldA, half *A16, int ldA16, int rows, int cols, int BLOCK)
-{
-	int i = blockIdx.x*blockDim.x + threadIdx.x;
-	int j = blockIdx.y*blockDim.y + threadIdx.y;
-
-	i *= BLOCK;
-
-	if (i >= rows) return;
-	if (j >= cols) return;
-
-   A[i + j*ldA] =(double) __half2float(A16[i + j*ldA16]);
-   return;
-
-	for(int k=0;k<BLOCK;k++){
-		if( (i+k-1) >= rows)
-			break;
-		A[ (i+k-1) + j*ldA] =(double) __half2float(A16[(i+k) + j*ldA16]);
-	}
-
-
-	return ;
-}
 
 

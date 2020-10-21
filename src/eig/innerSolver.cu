@@ -35,8 +35,8 @@ void innerSolver_init(double *P, int ldP, double *R, int ldR,
    // init sQMR 
    if(jd->useHalf == 1){
       // fp16 
-      CUDA_CALL(cudaMalloc((void**)&(spInnerSolver->X16),sizeof(half)*dim));
-      CUDA_CALL(cudaMalloc((void**)&(spInnerSolver->B16),sizeof(half)*dim));
+      CUDA_CALL(cudaMalloc((void**)&(spInnerSolver->X16),sizeof(half)*dim*numEvals));
+      CUDA_CALL(cudaMalloc((void**)&(spInnerSolver->B16),sizeof(half)*dim*numEvals));
       spInnerSolver->spSQmr = (struct sqmrSpace *)malloc(sizeof(struct sqmrSpace));
       sqmr_init((half*)spInnerSolver->X16, dim, (half*)spInnerSolver->B16, dim, dim, 0, jd);
    }else{
@@ -123,10 +123,14 @@ For step 1 sQMR with early stopping is used
       /* normalize B with infinity norm */
       double alpha;
       for(int i=0; i<numEvals; i++){
+/*
          cublasIdamax(cublasH,dim,&B[0+i*ldP], 1, normIndexB);
          (*normIndexB)--;
          CUDA_CALL(cudaMemcpy(maxB,&B[*normIndexB + i*ldB],sizeof(double),cudaMemcpyDeviceToHost));
-         alpha = 1.0/(*maxB);
+*/
+         double result;
+         cublasDnrm2(cublasH, dim, &B[0+i*ldP], 1, &result);
+         alpha = 1.0/(result);
          cublasDscal(cublasH,dim,&alpha,&B[0+i*ldP],1);   
       }
 
@@ -136,7 +140,7 @@ For step 1 sQMR with early stopping is used
       half *B16 = (half*)spInnerSolver->B16;
 
 
-      
+#if 0
       for(int i=0;i<numEvals; i++){
          CUDA_CALL(double2halfMat(X16, dim, &X[0+i*ldX], ldX, dim, 1));
          CUDA_CALL(double2halfMat(B16, dim, &B[0+i*ldB], ldB, dim, 1));
@@ -144,9 +148,15 @@ For step 1 sQMR with early stopping is used
          sqmr(X16, ldX, B16, ldB, dim, 1.0, jd);
          CUDA_CALL(half2doubleMat(&X[0+i*ldX], ldX, X16, dim, dim, 1));
       }
-
-      /* P = X-V*V'*X */
       CUDA_CALL(cudaMemcpy(P,X,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice));
+#else
+      CUDA_CALL(double2halfMat(B16, dim, B, ldB, dim, numEvals));
+      for(int i=0;i<numEvals; i++){
+         sqmr(&X16[0+i*dim], ldX, &B16[0+i*dim], ldB, dim, 1.0, jd);
+      }
+      CUDA_CALL(half2doubleMat(P, ldP, X16, dim, dim, numEvals));
+#endif
+      /* P = X-V*V'*X */
       CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,numEvals,dim,&one,
                               V, CUDA_R_64F,ldV,R,CUDA_R_64F,ldR,
                               &zero,VTB,CUDA_R_64F,ldVTB,CUDA_R_64F,
@@ -162,6 +172,7 @@ For step 1 sQMR with early stopping is used
       /* ==== FP64 SOLVER ==== */
       double *X_;
       double *B_;
+
       for(int i=0;i<numEvals; i++){
          X_ = &P[0+i*ldX];
          B_ = &B[0+i*ldB];

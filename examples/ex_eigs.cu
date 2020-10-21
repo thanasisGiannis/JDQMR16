@@ -20,26 +20,31 @@
 void quicksort(double *val ,int first,int last , int *I, int *J);
 int main(){
 
+//	char *mName = "MTX_FILES/nos4.mtx"; // 100
 //	char *mName = "MTX_FILES/1138_bus.mtx"; //1138
 //	char *mName = "MTX_FILES/msc04515.mtx"; //4,515
 //	char *mName = "MTX_FILES/494_bus.mtx"; // 494
-//	char *mName = "MTX_FILES/nos4.mtx"; // 100
 //	char *mName = "MTX_FILES/bcsstk01.mtx"; //48
 //   char *mName = "MTX_FILES/ex33.mtx";
 //   char *mName = "MTX_FILES/shallow_water1.mtx";
 //	char *mName = "MTX_FILES/nd24k.mtx"; 
-//	char *mName = "MTX_FILES/Lap7p1M.mtx"; 
 //	char *mName = "MTX_FILES/nasa4704.mtx"; 
 //	char *mName = "MTX_FILES/nasa4704_b.mtx";
 //   char *mName = "MTX_FILES/mhd4800b.mtx";
-//	char *mName = "MTX_FILES/G3_circuit.mtx"; // 1,585,478
 	
    /* primme matrices */
-	char *mName = "MTX_FILES/finan512.mtx"; //74752
+//	char *mName = "MTX_FILES/finan512.mtx"; //74752
 //	char *mName = "MTX_FILES/Andrews.mtx"; 
 //	char *mName = "MTX_FILES/Lap7p1M.mtx"; // problem
 //	char *mName = "MTX_FILES/cfd1.mtx"; 
 //	char *mName = "MTX_FILES/cfd2.mtx"; 
+
+
+//	char *mName = "MTX_FILES/nasasrb.mtx"; 
+//	char *mName = "MTX_FILES/msdoor.mtx"; 
+//	char *mName = "MTX_FILES/thermomech_dM.mtx"; 
+	char *mName = "MTX_FILES/G3_circuit.mtx"; 
+
 
    struct jdqmr16Matrix *A = (struct jdqmr16Matrix *)malloc(sizeof(struct jdqmr16Matrix));
    
@@ -135,14 +140,13 @@ int main(){
    A->dim    = numRows; // or numCols (support for symmetric matrices)
    A->nnz    = nnz;     // number of nonzero elements
   
-
    struct jdqmr16Info* jd = (struct jdqmr16Info*)malloc(sizeof(struct jdqmr16Info));
 
-   jd->numEvals = 4;     // number of wanted eigenvalues
-   jd->maxBasis = 15;    // maximum size of JD basis
+   jd->numEvals = 1;          // number of wanted eigenvalues
+   jd->maxBasis = 15;          // maximum size of JD basis
    jd->maxIter  = 3*numRows;;  // maximum number of JD iterations
-   jd->tol      = 1e-07; // tolerance of the residual
-   jd->matrix   = A;     // data of matrix
+   jd->tol      = 1e-08;       // tolerance of the residual
+   jd->matrix   = A;           // data of matrix
    jd->useHalf  = 1;
    jd->locking  = 1;
    init_jdqmr16(jd);
@@ -171,6 +175,9 @@ int main(){
    }
    printf("\n\n%%----------\n");
    printf("%%outerIterations=%d \n%%innerIterations=%d\n%%Tolerance=%e\n%%normA=%e\n",jd->outerIterations,jd->innerIterations,jd->tol,jd->normMatrix);
+   printf("%%dim=%d;\n",numRows);
+   printf("%%nnz=%d;\n",nnz);
+   printf("%%nnz(%%)=%e %%;\n",(float)nnz/((float)numRows*numRows));
    printf("%%fp64 matVecs=%d\n%%fp16 matVecs=%d\n",jd->numMatVecsfp64,jd->numMatVecsfp16);
    printf("\n\n%%----------\n");
    printf("%%==========\n");
@@ -197,6 +204,9 @@ int main(){
 void quicksort(double *val ,int first,int last , int *I, int *J){
    int i, j, pivot, temp;
 	double tmpVal;
+
+   if(first >= last)
+      return;
 
    if(first<last){
       pivot=first;
@@ -225,8 +235,8 @@ void quicksort(double *val ,int first,int last , int *I, int *J){
             temp=J[i];
             J[i]=J[j];
             J[j]=temp;
-
-
+         }else{
+            break;
          }
       }
 
@@ -244,9 +254,12 @@ void quicksort(double *val ,int first,int last , int *I, int *J){
       J[pivot]=J[j];
       J[j]=temp;
 
-      quicksort(val,first,j-1, I,J);
-      quicksort(val,j+1,last,I,J);
-
+      if(first <= j-1){
+         quicksort(val,first,j-1, I,J);
+      }
+      if(j+1 <= last){
+         quicksort(val,j+1,last,I,J);
+      }
    }
 }
 
