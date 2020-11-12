@@ -36,7 +36,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    jd->outerIterations = 0;
    jd->innerIterations = 0;
 
-   if(jd->useHalf !=0){
+   if(jd->useHalf !=-1 && jd->useHalf != 0 && jd->useHalf!=1 && jd->useHalf!=-2){
       jd->useHalf = 1;
    }
    /* if matrix is small */
@@ -47,6 +47,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
  
    /* initialize data to device */
    CUDA_CALL(cudaMalloc((void**)&(A->devValuesD),sizeof(double)*nnz));
+   CUDA_CALL(cudaMalloc((void**)&(A->devValuesF),sizeof(double)*nnz));
    CUDA_CALL(cudaMalloc((void**)&(A->devValuesH),sizeof(half)*nnz));
 
    CUDA_CALL(cudaMalloc((void**)&(A->devCols),sizeof(int)*nnz));
@@ -75,9 +76,11 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    // cublas
    cublasHandle_t *cublasH =  &(gpuH->cublasH);
    cublasCreate(cublasH);   
+   cublasSetMathMode(*cublasH, CUBLAS_TENSOR_OP_MATH);
    // cusparse
    cusparseHandle_t *cusparseH = &(gpuH->cusparseH);
    cusparseCreate(cusparseH);
+
 
    /* initialize space for solver */
    struct devSolverSpace* sp = jd->sp;
@@ -145,29 +148,32 @@ void init_jdqmr16(struct jdqmr16Info *jd){
       }
    }
 
-   /* Half precision matrix creation */
-   double *vec; cudaMalloc((void**)&vec,(A->nnz)*sizeof(double));
-   cudaMemcpy(vec,A->devValuesD,(A->nnz)*sizeof(double),cudaMemcpyDeviceToDevice);
-   double alpha; 
+   if(jd->useHalf == 1){
+      /* Half precision matrix creation */
+      double *vec; cudaMalloc((void**)&vec,(A->nnz)*sizeof(double));
+      cudaMemcpy(vec,A->devValuesD,(A->nnz)*sizeof(double),cudaMemcpyDeviceToDevice);
+      double alpha; 
 
-//   printMatrixDouble(vec,A->nnz,1,"double");
-//   if(jd->normMatrix > 5e+03 || jd->normMatrix < 5e-02){
-   if(1){
-      alpha = 2048.0/(jd->normMatrix);
-/*
-      double result;
-      cublasDnrm2(*cublasH, dim,A->devValuesD, 1, &result);
-      alpha = 1.0/result;    
-*/
+      if(jd->normMatrix > 5e+03 || jd->normMatrix < 5e-03){
+         alpha = 2048.0/(jd->normMatrix);
+         cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
+      }
+      CUDA_CALL(double2halfMat(A->devValuesH, A->nnz, vec, A->nnz, A->nnz, 1));
+      cudaFree(vec);
+   }else if(jd->useHalf == -1){
 
-      cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
+      /* float precision matrix creation */
+      double *vec; cudaMalloc((void**)&vec,(A->nnz)*sizeof(double));
+      cudaMemcpy(vec,A->devValuesD,(A->nnz)*sizeof(double),cudaMemcpyDeviceToDevice);
+      double alpha; 
+
+      if(jd->normMatrix > 5e+07 || jd->normMatrix < 5e-07){
+         alpha = 1e+05/(jd->normMatrix);
+         cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
+      }
+      CUDA_CALL(double2floatMat(A->devValuesF, A->nnz, vec, A->nnz, A->nnz, 1));
+      cudaFree(vec);
    }
-   CUDA_CALL(double2halfMat(A->devValuesH, A->nnz, vec, A->nnz, A->nnz, 1));
-//   printMatrixHalf(A->devValuesH,A->nnz,1,"half");
-//   printf("alpha=%e\n",alpha);
-   cudaFree(vec);
-
-//exit(0);
 
    return;
 }
@@ -204,6 +210,7 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
    
    double *devVals  = A->devValuesD;
    half   *devValsH = A->devValuesH;
+   float  *devValsF = A->devValuesF;
    int    *devRows  = A->devRows;
    int    *devCols  = A->devCols;
    int    nnz       = A->nnz;
@@ -211,6 +218,7 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
 
    CUDA_CALL(cudaFree(devVals));
    CUDA_CALL(cudaFree(devValsH));
+   CUDA_CALL(cudaFree(devValsF));
    CUDA_CALL(cudaFree(devCols));
    CUDA_CALL(cudaFree(devRows));
 
@@ -318,7 +326,6 @@ void jdqmr16(struct jdqmr16Info *jd){
       for(int j=0;j<numEvals;j++){
          cublasDnrm2(jd->gpuH->cublasH,dim,&R[0+j*ldR], 1, &normr[j]);
       }
-
       /* locking new converged eigenpairs */
       lock(V,ldV,L,R,ldR,normr,Qlocked,ldQlocked,Llocked,W,ldW,H,ldH,AW,ldAW,
             numLocked,numEvals,maxBasis,basisSize,dim,tol*normA,jd);
@@ -337,8 +344,8 @@ void jdqmr16(struct jdqmr16Info *jd){
          break;
       }
 
-      #if 0
-      if(i%10 == 0){
+      #if 1
+      if(i%50 == 0){
          for(int j=0;j<numEvals;j++){
             printf("%%normr[%d]/normA = %e\n",i,normr[j]/normA);        
          }

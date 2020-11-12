@@ -35,6 +35,29 @@ void printMatrixHalf(half *matrix16, int rows, int cols, char *name){
 
 
 
+void printMatrixFloat(float *matrix, int rows, int cols, char *name){
+
+	float *hmatrix = (float*)malloc(sizeof(float)*rows*cols);
+	cudaMemcpy(hmatrix,matrix,sizeof(float)*rows*cols,cudaMemcpyDeviceToHost);
+
+	printf("\%% %s\n",name);
+	printf("\%% ===================\n");
+
+	 printf("%s = zeros(%d,%d);\n",name,rows,cols);
+    for(int row = 0 ; row < rows ; row++){
+        for(int col = 0 ; col < cols ; col++){
+            float Areg = hmatrix[row + col*rows];
+//            printf("%s(%d,%d) = %.50lf;\n", name, row+1, col+1, Areg);
+            printf("%s(%d,%d) = %e;\n", name, row+1, col+1, Areg);
+        }
+    }
+
+
+	printf("\%% ===================\n\n");
+	free(hmatrix);
+}
+
+
 void printMatrixDouble(double *matrix, int rows, int cols, char *name){
 
 	double *hmatrix = (double*)malloc(sizeof(double)*rows*cols);

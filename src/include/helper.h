@@ -74,6 +74,7 @@ static const char* cublasGetErrorString(cublasStatus_t status)
 void printMatrixHalf(half *matrix16, int rows, int cols, char *name);
 void printMatrixDouble(double *matrix, int rows, int cols, char *name);
 void printMatrixInt(int *matrix, int rows, int cols, char *name);
+void printMatrixFloat(float *matrix, int rows, int cols, char *name);
 
 #endif
 

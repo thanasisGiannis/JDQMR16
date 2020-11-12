@@ -7,6 +7,12 @@ void sqmr_destroy(struct jdqmr16Info *jd);
 
 
 
+void sqmrF_init(float *X, int ldX, float *B, int ldB, int dim, double infNormB, struct jdqmr16Info *jd);
+void sqmrF(float *X, int ldX, float *B, int ldB, int dim, double infNormB, struct jdqmr16Info *jd);
+void sqmrF_destroy(struct jdqmr16Info *jd);
+
+
+
 void sqmrD_init(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEvals,
                int dim, double infNormB, struct jdqmr16Info *jd);
 

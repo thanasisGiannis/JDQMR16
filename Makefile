@@ -2,7 +2,7 @@ SRC=./src/
 HFILES = $(SRC)*.h
 CUDADIR=/usr/local/cuda-10.2
 
-CUDA_ARCH_FLAGS := -O3 -w -arch=sm_70 #-g -G 
+CUDA_ARCH_FLAGS := -O3 -w -arch=sm_70 #-g -pg -G 
 CFLAGS = $(CUDA_ARCH_FLAGS)
 
 CC = $(CUDADIR)/bin/nvcc

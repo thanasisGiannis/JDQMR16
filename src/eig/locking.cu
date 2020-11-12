@@ -60,6 +60,7 @@ void lock(double *V, int ldV, double *L, double *R, int ldR, double *normr,
             numLocked ++;
          }
       }
+      //printf("numLocked: %d\n\n",numLocked);
       if(numLocked == numEvals){
          cudaMemcpy(Qlocked,V,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
       }
@@ -91,7 +92,6 @@ void lock(double *V, int ldV, double *L, double *R, int ldR, double *normr,
          cudaMemcpy(&Llocked[numLocked],&L[i],sizeof(double),cudaMemcpyDeviceToDevice);
 
          /* put random vector inside previous spot of eigenvalues */
-
          if(jd->locking == 1){
             curandGenerator_t curandH = gpuH->curandH;
             curandSetPseudoRandomGeneratorSeed(curandH,1234ULL); /* set Seed */

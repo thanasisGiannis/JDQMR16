@@ -13,29 +13,28 @@
 #include <sys/time.h>
 #include "../include/jdqmr16.h"
 #include "include/mmio.h"
-
+#include <cuda_profiler_api.h> 
 #include <time.h>
 
 
 void quicksort(double *val ,int first,int last , int *I, int *J);
-int main(){
+int main(int argc,char *argv[]){
 
-//	char *mName = "MTX_FILES/nos4.mtx"; // 100
+
+#if 0
+	char *mName = "MTX_FILES/nos4.mtx"; // 100
 //	char *mName = "MTX_FILES/1138_bus.mtx"; //1138
 //	char *mName = "MTX_FILES/msc04515.mtx"; //4,515
 //	char *mName = "MTX_FILES/494_bus.mtx"; // 494
-//	char *mName = "MTX_FILES/bcsstk01.mtx"; //48
-//   char *mName = "MTX_FILES/ex33.mtx";
-//   char *mName = "MTX_FILES/shallow_water1.mtx";
+// char *mName = "MTX_FILES/ex33.mtx";
+// char *mName = "MTX_FILES/shallow_water1.mtx";
 //	char *mName = "MTX_FILES/nd24k.mtx"; 
 //	char *mName = "MTX_FILES/nasa4704.mtx"; 
-//	char *mName = "MTX_FILES/nasa4704_b.mtx";
-//   char *mName = "MTX_FILES/mhd4800b.mtx";
 	
    /* primme matrices */
 //	char *mName = "MTX_FILES/finan512.mtx"; //74752
 //	char *mName = "MTX_FILES/Andrews.mtx"; 
-//	char *mName = "MTX_FILES/Lap7p1M.mtx"; // problem
+//	char *mName = "MTX_FILES/Lap7p1M.mtx"; 
 //	char *mName = "MTX_FILES/cfd1.mtx"; 
 //	char *mName = "MTX_FILES/cfd2.mtx"; 
 
@@ -43,7 +42,12 @@ int main(){
 //	char *mName = "MTX_FILES/nasasrb.mtx"; 
 //	char *mName = "MTX_FILES/msdoor.mtx"; 
 //	char *mName = "MTX_FILES/thermomech_dM.mtx"; 
-	char *mName = "MTX_FILES/G3_circuit.mtx"; 
+//	char *mName = "MTX_FILES/G3_circuit.mtx"; 
+//   char *mName = "MTX_FILES/nlpkkt160.mtx"; 
+//   char *mName = "MTX_FILES/kkt_power.mtx"; 
+//   char *mName = "MTX_FILES/Cube_Coup_dt6.mtx"; // half not working
+//   char *mName = "MTX_FILES/CurlCurl_4.mtx"; 
+//   char *mName = "MTX_FILES/Queen_4147.mtx"; 
 
 
    struct jdqmr16Matrix *A = (struct jdqmr16Matrix *)malloc(sizeof(struct jdqmr16Matrix));
@@ -132,6 +136,54 @@ int main(){
    if (f !=stdin) fclose(f);
    /* /\--- Done Loading Data ---/\ */
 
+#else
+
+   struct jdqmr16Matrix *A = (struct jdqmr16Matrix *)malloc(sizeof(struct jdqmr16Matrix));
+   
+   double *vA;     // values of matrix
+   int    *rows;   // array of row indexing
+   int    *cols;   // array of column indexing
+   int    numRows; // number of rows
+   int    numCols; // number of columns
+   int    nnz;     // number of nonzero elements
+   int    n = 100;
+   int    i,j;
+
+   if(argc == 4){
+      n = atoi(argv[3]);
+   }
+
+   nnz = n + 2*n-2;
+   rows = (int*) calloc(nnz, sizeof(int));
+   cols = (int*) calloc(nnz, sizeof(int));
+   vA   = (double*) calloc(nnz, sizeof(double));
+
+   int index = 0;
+   for (i = 0; i < n; i++) {
+      cols[index] = i;
+      rows[index] = i;
+      vA[index]   = 2.0;
+      index++;
+
+      if(i+1<n){
+         cols[index] = i+1;
+         rows[index] = i;
+         vA[index]   = -1;
+         index++;
+
+         cols[index] = i;
+         rows[index] = i+1;
+         vA[index]   = -1;
+         index++;
+
+      }
+
+   }
+   numCols = n;
+   numRows = n;
+   quicksort(vA ,0,nnz-1 ,rows,cols);
+
+#endif
 
    /* Preparing data for jdqmr16 */
    A->values = vA;      // cpu values of matrix
@@ -142,20 +194,31 @@ int main(){
   
    struct jdqmr16Info* jd = (struct jdqmr16Info*)malloc(sizeof(struct jdqmr16Info));
 
-   jd->numEvals = 1;          // number of wanted eigenvalues
-   jd->maxBasis = 15;          // maximum size of JD basis
-   jd->maxIter  = 3*numRows;;  // maximum number of JD iterations
-   jd->tol      = 1e-08;       // tolerance of the residual
-   jd->matrix   = A;           // data of matrix
-   jd->useHalf  = 1;
-   jd->locking  = 1;
+   if(argc > 1 ){
+      jd->numEvals = atoi(argv[1]);          // number of wanted eigenvalues
+      jd->maxBasis = 15;          // maximum size of JD basis
+      jd->maxIter  = 3*numRows;;  // maximum number of JD iterations
+      jd->tol      = 1e-7;       // tolerance of the residual
+      jd->matrix   = A;           // data of matrix
+      jd->useHalf  = atoi(argv[2]);
+      jd->locking  = 0;
+   }else{
+      jd->numEvals = 1;          // number of wanted eigenvalues
+      jd->maxBasis = 15;          // maximum size of JD basis
+      jd->maxIter  = 3*numRows;;  // maximum number of JD iterations
+      jd->tol      = 1e-7;       // tolerance of the residual
+      jd->matrix   = A;           // data of matrix
+      jd->useHalf  = -2;
+      jd->locking  = 0;
+   }
    init_jdqmr16(jd);
 
    printf("%%Finding eigenpairs...\n");
+
    time_t start = time(NULL);
-
+   cudaProfilerStart();
    jdqmr16(jd);
-
+   cudaProfilerStop();
    time_t end = time(NULL);
    printf("%%Found them!\n");
 
@@ -186,7 +249,7 @@ int main(){
 
 
 
-   
+
    /* free memory */
    free(L);
    free(V);
