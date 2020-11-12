@@ -157,6 +157,7 @@ void sqmrF(float *X, int ldX, float *B, int ldB, int dim, double infNormB, struc
       xi = c*c*alpha;    
       normt; 
       CUBLAS_CALL(cublasNrm2Ex(cublasH,dim,r,CUDA_R_32F,1,&normt,CUDA_R_32F,CUDA_R_32F)); 
+      normt = normt/(float)jd->alpha;
       f = 1 + normt*normt; 
       PSI = gama*(PSI + FI);
       FI = gama*gama*FI + xi*xi*sigma;
@@ -798,7 +799,7 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
       xi = c*c*alpha;    
       normt; 
       CUBLAS_CALL(cublasNrm2Ex(cublasH,dim,r,CUDA_R_16F,1,&tmpScalar,CUDA_R_16F,CUDA_R_32F)); 
-      normt = __half2float(tmpScalar);
+      normt = __half2float(tmpScalar)/(float)jd->alpha;
       f = 1 + normt*normt; 
       PSI = gama*(PSI + FI);
       FI = gama*gama*FI + xi*xi*sigma;

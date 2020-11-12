@@ -148,6 +148,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
       }
    }
 
+   jd->alpha = 1.0;
    if(jd->useHalf == 1){
       /* Half precision matrix creation */
       double *vec; cudaMalloc((void**)&vec,(A->nnz)*sizeof(double));
@@ -157,6 +158,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
       if(jd->normMatrix > 5e+03 || jd->normMatrix < 5e-03){
          alpha = 2048.0/(jd->normMatrix);
          cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
+         jd->alpha = alpha;
       }
       CUDA_CALL(double2halfMat(A->devValuesH, A->nnz, vec, A->nnz, A->nnz, 1));
       cudaFree(vec);
@@ -170,6 +172,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
       if(jd->normMatrix > 5e+07 || jd->normMatrix < 5e-07){
          alpha = 1e+05/(jd->normMatrix);
          cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
+         jd->alpha = alpha;
       }
       CUDA_CALL(double2floatMat(A->devValuesF, A->nnz, vec, A->nnz, A->nnz, 1));
       cudaFree(vec);
@@ -344,7 +347,7 @@ void jdqmr16(struct jdqmr16Info *jd){
          break;
       }
 
-      #if 1
+      #if 0
       if(i%50 == 0){
          for(int j=0;j<numEvals;j++){
             printf("%%normr[%d]/normA = %e\n",i,normr[j]/normA);        
