@@ -17,16 +17,18 @@ void restart_init(double *W, int ldW, double *H, int ldH,
                struct jdqmr16Info *jd){
 
 
+   int memReqD    = 0;
+   int memReqI    = 0;
+   size_t memReqV = 0;
+
+
    struct gpuHandler *gpuH    = jd->gpuH;
    cublasHandle_t     cublasH   = gpuH->cublasH;
    cusolverDnHandle_t cusolverH = gpuH->cusolverH;
    cusparseHandle_t   cusparseH = gpuH->cusparseH;
 
    struct restartSpace *spRestart = jd->spRestart;
-/*
-   cudaMalloc((void**)&(spRestart->VprevTV),sizeof(double)*numEvals*numEvals);
-   spRestart->ldVprevTV = numEvals;
-*/
+
    cudaMalloc((void**)&(spRestart->AW),sizeof(double)*dim*3*numEvals);
    spRestart->ldAW = dim;
 
@@ -49,12 +51,11 @@ void restart_init(double *W, int ldW, double *H, int ldH,
    spRestart->lwork = (lwork_geqrf > lwork_orgqr)? lwork_geqrf : lwork_orgqr;
    cudaMalloc((void**)&(spRestart->d_work), sizeof(double)*(spRestart->lwork));
 
-
-
    cusparseSpMatDescr_t descrA;
    cusparseDnMatDescr_t descrW;
    cusparseDnMatDescr_t descrAW;
    cudaMalloc((void**)&(spRestart->AW),sizeof(double)*dim*3*numEvals);
+
    spRestart->ldAW = dim;
 
    struct jdqmr16Matrix  *A = jd->matrix;
@@ -73,20 +74,42 @@ void restart_init(double *W, int ldW, double *H, int ldH,
    assert(spRestart->bufferSize>0);
 	cudaMalloc((void**)&(spRestart->buffer),spRestart->bufferSize);
 
+
+
+
+   memReqV += bufferSize;
+   memReqD += dim*3*numEvals;
+   memReqD += spRestart->lwork;
+   memReqI += 1;
+   memReqD += dim;
+   memReqD += dim*3*numEvals;
+
+
+   jd->gpuMemSpaceDoubleSize = max(jd->gpuMemSpaceDoubleSize,memReqD);
+   jd->gpuMemSpaceIntSize    = max(jd->gpuMemSpaceIntSize,memReqI);
+   jd->gpuMemSpaceVoidSize   = max(jd->gpuMemSpaceVoidSize,memReqV);
+
+//return;
+
+   cudaFree(spRestart->AW);
+   cudaFree(spRestart->d_tau);
+   cudaFree(spRestart->devInfo);
+   cudaFree(spRestart->d_work);
+	cudaFree(spRestart->buffer);
+
 }
 
 void restart_destroy(struct jdqmr16Info *jd){
 
    struct restartSpace *spRestart = jd->spRestart;
 
+/*
    cudaFree(spRestart->AW);
-//   cudaFree(spRestart->VprevTV);
-
    cudaFree(spRestart->d_tau);
    cudaFree(spRestart->devInfo);
    cudaFree(spRestart->d_work);
-
    cudaFree(spRestart->buffer);
+*/
 }
 
 void restart(double *W, int ldW, double *H, int ldH, 
@@ -103,6 +126,40 @@ void restart(double *W, int ldW, double *H, int ldH,
 
    struct restartSpace *spRestart = jd->spRestart;
 
+#if 1
+
+   double *memD = jd->gpuMemSpaceDouble;
+   int    *memI = jd->gpuMemSpaceInt;
+   void   *memV = jd->gpuMemSpaceVoid;
+
+
+   double *d_tau = memD; memD += dim;
+   int    *devInfo = memI; 
+
+   double *AW = memD; memD += dim*3*numEvals;
+   int ldAW = spRestart->ldAW;
+
+   double *buffer = memD; memD += spRestart->bufferSize;
+
+   double *d_work = memD;
+   int lwork = spRestart->lwork;
+
+
+	cusparseCreateDnMat(&(spRestart->descrAW),dim,3*numEvals,ldAW,AW,CUDA_R_64F,CUSPARSE_ORDER_COL);
+
+
+#else
+
+   double *d_tau = spRestart->d_tau;  
+   int    *devInfo = spRestart->devInfo;
+   double *d_work = spRestart->d_work;
+   int lwork = spRestart->lwork;
+   double *AW = spRestart->AW;
+   int ldAW = spRestart->ldAW;
+   double *buffer = spRestart->buffer;
+
+#endif
+
    /* W = [Vprev V W_1]*/
    *basisSize = 3;
 
@@ -114,12 +171,6 @@ void restart(double *W, int ldW, double *H, int ldH,
    cudaMemset(H,0,sizeof(double)*ldH*maxBasisSize*numEvals);
 
    /* W = orth(W) */
-
-   double *d_tau = spRestart->d_tau;  
-   int    *devInfo = spRestart->devInfo;
-   double *d_work = spRestart->d_work;
-   int lwork = spRestart->lwork;
-
    cusolverDnDgeqrf(cusolverH,dim,3*numEvals,W,ldW,d_tau,d_work,lwork,devInfo);
    cusolverDnDorgqr(cusolverH,dim,3*numEvals,3*numEvals,W,ldW,d_tau,d_work,lwork,devInfo);
 
@@ -129,10 +180,6 @@ void restart(double *W, int ldW, double *H, int ldH,
    cusparseDnMatDescr_t descrW = spRestart->descrW;
    cusparseDnMatDescr_t descrAW = spRestart->descrAW;
 
-   double *AW = spRestart->AW;
-   int ldAW = spRestart->ldAW;
-
-   double *buffer = spRestart->buffer;
 
    double zero = 0.0;
    double one  = 1.0;
@@ -140,7 +187,6 @@ void restart(double *W, int ldW, double *H, int ldH,
    cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,descrA,descrW,&zero,descrAW,CUDA_R_64F,
              CUSPARSE_COOMM_ALG2,buffer);
-
 
    /* W = W'*AW */
    CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,3*numEvals,3*numEvals,dim,&one,

@@ -16,6 +16,11 @@ void residual_init(double *R, int ldR, double *V, int ldV, double *L, int numEva
    struct jdqmr16Matrix  *A = jd->matrix;
    int dim    = A->dim;
 
+   int memReqD    = 0;
+   int memReqI    = 0;
+   size_t memReqV = 0;
+
+
    /* handlers for gpu and jdqmr16 */
    struct gpuHandler *gpuH    = jd->gpuH;
    struct eigHSpace  *spEig   = jd->spEigH;
@@ -28,6 +33,8 @@ void residual_init(double *R, int ldR, double *V, int ldV, double *L, int numEva
 
 
    cudaMalloc((void**)&(spRes->VL),sizeof(double)*dim*numEvals);
+
+
    spRes->ldVL = dim;
    spRes->hL = (double*)malloc(sizeof(double)*numEvals);
 
@@ -49,14 +56,23 @@ void residual_init(double *R, int ldR, double *V, int ldV, double *L, int numEva
    assert(spRes->bufferSize>0);
 	cudaMalloc((void**)&(spRes->buffer),spRes->bufferSize);
 
+   memReqD += dim*numEvals;
+   memReqV += spRes->bufferSize;
+
+   jd->gpuMemSpaceDoubleSize = max(jd->gpuMemSpaceDoubleSize,memReqD);
+   jd->gpuMemSpaceIntSize    = max(jd->gpuMemSpaceIntSize,memReqI);
+   jd->gpuMemSpaceVoidSize   = max(jd->gpuMemSpaceVoidSize,memReqV);
+
+   cudaFree(spRes->VL);
+   cudaFree(spRes->buffer);
 }
 
 void residual_destroy(struct jdqmr16Info *jd){
 
    struct residualSpace *spRes = jd->spResidual;
    
-   cudaFree(spRes->buffer);
-   cudaFree(spRes->VL);
+//   cudaFree(spRes->buffer);
+//   cudaFree(spRes->VL);
    free(spRes->hL);
 
 
@@ -78,16 +94,24 @@ void residual(double *R, int ldR, double *V, int ldV, double *L, int numEvals, s
    cusolverDnHandle_t cusolverH = gpuH->cusolverH;
    cublasHandle_t     cublasH   = gpuH->cublasH;
    cusparseHandle_t   cusparseH = gpuH->cusparseH;
-   double *VL = spRes->VL; int ldVL = spRes->ldVL;
-   
-   
-   // buffer matrices allocation mem
-   // AV,VL, hL
+
+#if 1
+   double *memD = jd->gpuMemSpaceDouble;
+   int    *memI = jd->gpuMemSpaceInt;
+   void   *memV = jd->gpuMemSpaceVoid;
+
+   double *VL     = memD; int ldVL = spRes->ldVL;
+   void   *buffer = memV;
+
+#else
+   double *VL     = spRes->VL; int ldVL = spRes->ldVL;
+   void   *buffer = spRes->buffer;
+#endif
    double *hL = spRes->hL;
    cudaMemcpy(spRes->hL,L,sizeof(double)*numEvals,cudaMemcpyDeviceToHost); 
 
    // VL = V
-   cudaMemcpy(spRes->VL,V,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice); 
+   cudaMemcpy(VL,V,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice); 
    // VL = VL*L
    double *alpha,*x;
 	int incx = 1;
@@ -99,12 +123,12 @@ void residual(double *R, int ldR, double *V, int ldV, double *L, int numEvals, s
    double zero = 0.0;
 
    cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
-             &one,spRes->descrA,spRes->descrV,&zero,spRes->descrR,CUDA_R_64F,CUSPARSE_COOMM_ALG2,spRes->buffer);
+             &one,spRes->descrA,spRes->descrV,&zero,spRes->descrR,CUDA_R_64F,CUSPARSE_COOMM_ALG2,buffer);
    jd->numMatVecsfp64 += numEvals;
 
    /* R = R-VL */
    double minus_one = -1.0;
    cublasDgeam(cublasH,CUBLAS_OP_N, CUBLAS_OP_N,dim,numEvals,&one,R, ldR,
-                          &minus_one,spRes->VL,spRes->ldVL,R,ldR);
+                          &minus_one,VL,ldVL,R,ldR);
 
 }

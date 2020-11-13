@@ -12,10 +12,16 @@
 void expandBasis_init(double *W, int ldW, double *H, int ldH, double *P, int ldP,
                 int maxBasisSize, int dim, int numEvals, struct jdqmr16Info *jd){
 
+
+   int memReqD    = 0;
+   int memReqI    = 0;
+   size_t memReqV = 0;
+
    struct expandBasisSpace *spExpandBasis = jd->spExpandBasis;
 
 
    cudaMalloc((void**)&(spExpandBasis->AP),sizeof(double)*dim*numEvals);
+
    spExpandBasis->ldAP = dim;
    
    /* P = P - W*W'*P */
@@ -26,6 +32,7 @@ void expandBasis_init(double *W, int ldW, double *H, int ldH, double *P, int ldP
 
 
    cudaMalloc((void**)&(spExpandBasis->WTP),sizeof(double)*maxBasisSize*numEvals*numEvals);
+
    spExpandBasis->ldWTP = maxBasisSize*numEvals;
 
    /* P = orth(P) */
@@ -39,15 +46,14 @@ void expandBasis_init(double *W, int ldW, double *H, int ldH, double *P, int ldP
    int info_gpu = 0;   
 
    cudaMalloc((void**)&(spExpandBasis->d_tau), sizeof(double)*dim);
+
    cudaMalloc((void**)&(spExpandBasis->devInfo), sizeof(int));
 
-   
    cusolverDnDgeqrf_bufferSize(cusolverH,dim,numEvals,P,ldP,&lwork_geqrf);
    cusolverDnDorgqr_bufferSize(cusolverH,dim,numEvals,numEvals,P,ldP,spExpandBasis->d_tau,&lwork_orgqr);
 
    spExpandBasis->lwork = (lwork_geqrf > lwork_orgqr)? lwork_geqrf : lwork_orgqr;
    cudaMalloc((void**)&(spExpandBasis->d_work), sizeof(double)*(spExpandBasis->lwork));
-
 
 
    /* AP = A*P */
@@ -69,28 +75,48 @@ void expandBasis_init(double *W, int ldW, double *H, int ldH, double *P, int ldP
 	cudaMalloc((void**)&(spExpandBasis->buffer),spExpandBasis->bufferSize);
 
 
+
+   memReqV += spExpandBasis->bufferSize;
+   memReqD += spExpandBasis->lwork;
+   memReqI += 1;
+   memReqD += dim;
+   memReqD += maxBasisSize*numEvals*numEvals;
+   memReqD += dim*numEvals;
+
+
+   jd->gpuMemSpaceDoubleSize = max(jd->gpuMemSpaceDoubleSize,memReqD);
+   jd->gpuMemSpaceIntSize    = max(jd->gpuMemSpaceIntSize,memReqI);
+   jd->gpuMemSpaceVoidSize   = max(jd->gpuMemSpaceVoidSize,memReqV);
+
+//return;
+
+
+	cudaFree(spExpandBasis->buffer);
+   cudaFree(spExpandBasis->d_work);
+   cudaFree(spExpandBasis->d_tau);
+   cudaFree(spExpandBasis->devInfo);
+   cudaFree(spExpandBasis->WTP);
+   cudaFree(spExpandBasis->AP);
+
 }
 
 void expandBasis_destroy(struct jdqmr16Info *jd){
 
    struct expandBasisSpace  *spExpandBasis = jd->spExpandBasis;
 
+/*
    cudaFree(spExpandBasis->WTP);
    cudaFree(spExpandBasis->d_tau);
    cudaFree(spExpandBasis->devInfo);
    cudaFree(spExpandBasis->d_work);
-
-   
    cudaFree(spExpandBasis->buffer);
-   
    cudaFree(spExpandBasis->AP);
-
+*/
 }
 
 void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, double *Qlocked, int ldQlocked, int numLocked,
                 double *AW, int ldAW, int &basisSize, int dim, int numEvals, struct jdqmr16Info *jd){
 
-   
    struct gpuHandler        *gpuH          = jd->gpuH;
    struct expandBasisSpace  *spExpandBasis = jd->spExpandBasis;
 
@@ -98,51 +124,67 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, dou
    cusolverDnHandle_t     cusolverH = gpuH->cusolverH;
    cusparseHandle_t       cusparseH = gpuH->cusparseH;
 
-   /* P = -W*W'*P + P */
+
+#if 1
+   double *memD = jd->gpuMemSpaceDouble;
+   int    *memI = jd->gpuMemSpaceInt;
+   void   *memV = jd->gpuMemSpaceVoid;
+
+
+   double *WTP     = memD; memD+= basisSize*numEvals*numEvals;
+   int     ldWTP   = spExpandBasis->ldWTP;
+   double *d_tau   = memD; memD+= dim;
+   int    *devInfo = memI; memI+= 1;
+   double *d_work  = memD; memD+= spExpandBasis->lwork;
+   int     lwork   = spExpandBasis->lwork;
+   double *AP      = memD; 
+   int     ldAP    = spExpandBasis->ldAP;
+
+	cusparseCreateDnMat(&(spExpandBasis->descrAP),dim,numEvals,spExpandBasis->ldAP,
+                     (void*)AP,CUDA_R_64F,CUSPARSE_ORDER_COL);
+
+#else
    double *WTP = spExpandBasis->WTP; int ldWTP = spExpandBasis->ldWTP;
-   
-   double one  = 1.0;
-   double zero = 0.0;
-
-//   for(int i=0; i<basisSize; i++){
-   for(int i=0; i<1; i++){
-      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,basisSize*numEvals,numEvals,dim,&one,
-                              W,CUDA_R_64F,ldW,P,CUDA_R_64F,ldP,&zero,
-                              WTP,CUDA_R_64F,ldWTP,CUDA_R_64F,
-                              CUBLAS_GEMM_DEFAULT));
-      double minus_one = -1.0;
-      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,basisSize*numEvals,&minus_one,
-                              W,CUDA_R_64F,ldW,WTP,CUDA_R_64F,ldWTP,&one,
-                              P,CUDA_R_64F,ldP,CUDA_R_64F,
-                              CUBLAS_GEMM_DEFAULT));
-   }
-
-
-   /* P = - Qlocked*Qlocked'*P + P  */
-   for(int i=0; i<1; i++){
-      // using W'P same buffer space
-      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numLocked,numEvals,dim,&one,
-                              Qlocked,CUDA_R_64F,ldQlocked,P,CUDA_R_64F,ldP,&zero,
-                              WTP,CUDA_R_64F,ldWTP,CUDA_R_64F,
-                              CUBLAS_GEMM_DEFAULT));
-      double minus_one = -1.0;
-      CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numLocked,&minus_one,
-                              Qlocked,CUDA_R_64F,ldQlocked,WTP,CUDA_R_64F,ldWTP,&one,
-                              P,CUDA_R_64F,ldP,CUDA_R_64F,
-                              CUBLAS_GEMM_DEFAULT));
-   }
-
-   /* P = orth(P)  */
    double *d_tau   = spExpandBasis->d_tau;
    int    *devInfo = spExpandBasis->devInfo;
    double *d_work  = spExpandBasis->d_work;
    int     lwork   = spExpandBasis->lwork;
+   double *AP = spExpandBasis->AP; int ldAP = spExpandBasis->ldAP;
 
+
+#endif
+
+   /* P = -W*W'*P + P */
+   double one       =  1.0;
+   double zero      =  0.0;
+   double minus_one = -1.0;
+
+   CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,basisSize*numEvals,numEvals,dim,&one,
+                           W,CUDA_R_64F,ldW,P,CUDA_R_64F,ldP,&zero,
+                           WTP,CUDA_R_64F,ldWTP,CUDA_R_64F,
+                           CUBLAS_GEMM_DEFAULT));
+   CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,basisSize*numEvals,&minus_one,
+                           W,CUDA_R_64F,ldW,WTP,CUDA_R_64F,ldWTP,&one,
+                           P,CUDA_R_64F,ldP,CUDA_R_64F,
+                           CUBLAS_GEMM_DEFAULT));
+
+
+   /* P = - Qlocked*Qlocked'*P + P  */
+   // using W'P same buffer space
+   CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numLocked,numEvals,dim,&one,
+                           Qlocked,CUDA_R_64F,ldQlocked,P,CUDA_R_64F,ldP,&zero,
+                           WTP,CUDA_R_64F,ldWTP,CUDA_R_64F,
+                           CUBLAS_GEMM_DEFAULT));
+   CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numLocked,&minus_one,
+                           Qlocked,CUDA_R_64F,ldQlocked,WTP,CUDA_R_64F,ldWTP,&one,
+                           P,CUDA_R_64F,ldP,CUDA_R_64F,
+                           CUBLAS_GEMM_DEFAULT));
+
+   /* P = orth(P)  */
    cusolverDnDgeqrf(cusolverH,dim,numEvals,P,ldP,d_tau,d_work,lwork,devInfo);
    cusolverDnDorgqr(cusolverH,dim,numEvals,numEvals,P,ldP,d_tau,d_work,lwork,devInfo);
 
    /* AP = A*P */
-   double *AP = spExpandBasis->AP; int ldAP = spExpandBasis->ldAP;
    cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,spExpandBasis->descrA,spExpandBasis->descrP,&zero,spExpandBasis->descrAP,CUDA_R_64F,
              CUSPARSE_COOMM_ALG2,spExpandBasis->buffer);

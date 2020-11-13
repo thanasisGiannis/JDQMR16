@@ -104,24 +104,26 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    double *W        = sp->L;        /* Ritz values */
    
    /* init inner functions */
-
-   // init initBasis
+   jd->gpuMemSpaceDoubleSize=0;
+   jd->gpuMemSpaceIntSize=0;
+   jd->gpuMemSpaceVoidSize=0;
+   // init initBasis /* GPU Global Mem Done */
    jd->spInitBasis = (struct initBasisSpace *)malloc(sizeof(struct initBasisSpace));
    initBasis_init(sp->W,sp->ldW, sp->H, sp->ldH, sp->V, sp->ldV,sp->L, dim, maxBasis,numEvals,jd);
 
-   // init eigH
+   // init eigH /* GPU Global Mem Done */
    jd->spEigH = (struct eigHSpace *)malloc(sizeof(struct eigHSpace));   
    eigH_init(sp->W, sp->ldW, sp->L, sp->H, sp->ldH, numEvals, maxBasis, jd);
    
-   // init residual
+   // init residual /* GPU Global Mem Done */
    jd->spResidual = (struct residualSpace *)malloc(sizeof(struct residualSpace));
    residual_init(sp->R,sp->ldR,sp->V,sp->ldV,sp->L,numEvals,jd);
 
-   // init expandBasis
+   // init expandBasis /* GPU Global Mem Done */
    jd->spExpandBasis = (struct expandBasisSpace *)malloc(sizeof(struct expandBasisSpace));
    expandBasis_init(sp->W, sp->ldW, sp->H, sp->ldH, sp->P, sp->ldP,maxBasis, dim, numEvals, jd);
 
-   // init restart
+   // init restart /* GPU Global Mem Done */
    jd->spRestart = (struct restartSpace *)malloc(sizeof(struct restartSpace));
    restart_init(sp->W, sp->ldW, sp->H, sp->ldH, sp->Vprev, sp->ldVprev, NULL , sp->V, sp->ldV, sp->L,
                &maxBasis, maxBasis, numEvals, dim, jd);
@@ -139,6 +141,13 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    if(jd->locking != 1 && jd->locking != 0 ){
       jd->locking = 0;   
    }
+
+
+   /* Allocate Global GPU Memory to be used by all inner functions */
+   cudaMalloc((void**)&(jd->gpuMemSpaceDouble),jd->gpuMemSpaceDoubleSize*sizeof(double));
+   cudaMalloc((void**)&(jd->gpuMemSpaceInt),jd->gpuMemSpaceIntSize*sizeof(int));
+   cudaMalloc((void**)&(jd->gpuMemSpaceVoid),jd->gpuMemSpaceVoidSize);
+
    /* find norm of matrix */
    jd->normMatrix = 0;
    double *val = A->values;
@@ -182,6 +191,11 @@ void init_jdqmr16(struct jdqmr16Info *jd){
 }
 
 void destroy_jdqmr16(struct jdqmr16Info *jd){
+
+   /* destroy Global Memory that is used in inner functions */
+   cudaFree(jd->gpuMemSpaceDouble);
+   cudaFree(jd->gpuMemSpaceInt);
+   cudaFree(jd->gpuMemSpaceVoid);
 
    /* destroy inner functions */
    lock_destroy(jd);

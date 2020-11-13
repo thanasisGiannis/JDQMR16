@@ -189,11 +189,7 @@ struct initBasisSpace{
 };
 
 struct jdqmr16Info {
-//   double *devL;
-//   double *devQ;
 
-//   double *L;
-//   double *Q;
 
    int numEvals =  1;
    int maxBasis =  15;
@@ -219,7 +215,15 @@ struct jdqmr16Info {
 
    int    useHalf = 1;
    int    locking = 1;
-   double alpha   = 1;
+   double alpha   = 1; // is used in the inner loop for stopping 
+
+   double   *gpuMemSpaceDouble;
+   int      *gpuMemSpaceInt;
+   void     *gpuMemSpaceVoid;
+
+   int       gpuMemSpaceDoubleSize;
+   int       gpuMemSpaceIntSize;
+   size_t    gpuMemSpaceVoidSize;
 };
 
 void init_jdqmr16(struct jdqmr16Info *jd);
