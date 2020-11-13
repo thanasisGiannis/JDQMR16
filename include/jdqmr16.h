@@ -17,6 +17,7 @@ struct jdqmr16Matrix {
 
 	/* gpu matrix space */
    double  *devValuesD;
+ 	float   *devValuesF;
  	half    *devValuesH;
 	int     *devCols;
 	int     *devRows;
@@ -96,6 +97,8 @@ struct innerSolverSpace{
 
    void *X16;
    void *B16;
+   void *X32;
+   void *B32;
   
    struct sqmrSpace        *spSQmr;
 
@@ -216,6 +219,7 @@ struct jdqmr16Info {
 
    int    useHalf = 1;
    int    locking = 1;
+   double alpha   = 1;
 };
 
 void init_jdqmr16(struct jdqmr16Info *jd);
