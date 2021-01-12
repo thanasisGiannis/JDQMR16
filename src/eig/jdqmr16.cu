@@ -27,6 +27,8 @@ void init_jdqmr16(struct jdqmr16Info *jd){
 
    double *devVals  = A->devValuesD;
    int    *devRows  = A->devRows;
+   int    *devCsrRows  = A->devCsrRows;
+
    int    *devCols  = A->devCols;
    int     nnz      = A->nnz;
    int     dim      = A->dim;
@@ -36,7 +38,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    jd->outerIterations = 0;
    jd->innerIterations = 0;
 
-   if(jd->useHalf !=-1 && jd->useHalf != 0 && jd->useHalf!=1 && jd->useHalf!=-2){
+   if(jd->useHalf !=-1 && jd->useHalf != 0 && jd->useHalf!=1 && jd->useHalf!=-2 && jd->useHalf!=-3){
       jd->useHalf = 1;
    }
    /* if matrix is small */
@@ -52,12 +54,13 @@ void init_jdqmr16(struct jdqmr16Info *jd){
 
    CUDA_CALL(cudaMalloc((void**)&(A->devCols),sizeof(int)*nnz));
    CUDA_CALL(cudaMalloc((void**)&(A->devRows),sizeof(int)*nnz));
+   CUDA_CALL(cudaMalloc((void**)&(A->devCsrRows),sizeof(int)*(dim+1)));
 
    CUDA_CALL(cudaMemcpy((void*)(A->devValuesD),(void*)vals,sizeof(double)*nnz,cudaMemcpyHostToDevice));
    CUDA_CALL(cudaMemcpy((void*)(A->devCols),(void*)cols,sizeof(int)*nnz,cudaMemcpyHostToDevice));
    CUDA_CALL(cudaMemcpy((void*)(A->devRows),(void*)rows,sizeof(int)*nnz,cudaMemcpyHostToDevice));
 
-
+   
 
    //CUBLAS_CALL(cublas);
 
@@ -81,6 +84,9 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    cusparseHandle_t *cusparseH = &(gpuH->cusparseH);
    cusparseCreate(cusparseH);
 
+   // create csr 
+   cusparseXcoo2csr(*cusparseH,A->devRows,nnz,dim,A->devCsrRows,CUSPARSE_INDEX_BASE_ZERO);
+
 
    /* initialize space for solver */
    struct devSolverSpace* sp = jd->sp;
@@ -90,6 +96,8 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    CUDA_CALL(cudaMalloc((void**)&sp->V,sizeof(double)*numEvals*dim));                        sp->ldV     = dim;
    CUDA_CALL(cudaMalloc((void**)&sp->L,sizeof(double)*numEvals)); 
    CUDA_CALL(cudaMalloc((void**)&sp->R,sizeof(double)*numEvals*dim));                        sp->ldR     = dim;
+   CUDA_CALL(cudaMalloc((void**)&sp->QH,sizeof(double)*maxBasis*numEvals*maxBasis*numEvals));sp->ldQH    = maxBasis*numEvals;
+
 
    CUDA_CALL(cudaMalloc((void**)&sp->Qlocked,sizeof(double)*numEvals*dim));                  sp->ldQlocked= dim;
    CUDA_CALL(cudaMalloc((void**)&sp->Llocked,sizeof(double)*numEvals)); 
@@ -132,7 +140,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    jd->spInnerSolver = (struct innerSolverSpace*)malloc(sizeof(struct innerSolverSpace));
    innerSolver_init(sp->P, sp->ldP, sp->R, sp->ldR, sp->V, sp->ldV, sp->L, numEvals, dim,jd);
 
-   // init locking
+   // init locking /* GPU Global Mem Done */
    jd->spLock = (struct lockSpace*)malloc(sizeof(struct lockSpace));
    sp->maxLockedVals = 2*numEvals;
    lock_init(sp->V, sp->ldV, sp->L, sp->R, sp->ldR, NULL,sp->Qlocked, sp->ldQlocked,
@@ -144,9 +152,9 @@ void init_jdqmr16(struct jdqmr16Info *jd){
 
 
    /* Allocate Global GPU Memory to be used by all inner functions */
-   cudaMalloc((void**)&(jd->gpuMemSpaceDouble),jd->gpuMemSpaceDoubleSize*sizeof(double));
-   cudaMalloc((void**)&(jd->gpuMemSpaceInt),jd->gpuMemSpaceIntSize*sizeof(int));
-   cudaMalloc((void**)&(jd->gpuMemSpaceVoid),jd->gpuMemSpaceVoidSize);
+   CUDA_CALL(cudaMalloc((void**)&(jd->gpuMemSpaceDouble),(jd->gpuMemSpaceDoubleSize)*sizeof(double)));
+   CUDA_CALL(cudaMalloc((void**)&(jd->gpuMemSpaceInt),(jd->gpuMemSpaceIntSize)*sizeof(int)));
+   CUDA_CALL(cudaMalloc((void**)&(jd->gpuMemSpaceVoid),(jd->gpuMemSpaceVoidSize)));
 
    /* find norm of matrix */
    jd->normMatrix = 0;
@@ -167,7 +175,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
       if(jd->normMatrix > 5e+03 || jd->normMatrix < 5e-03){
          alpha = 2048.0/(jd->normMatrix);
          cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
-         jd->alpha = alpha;
+         jd->alpha = 1;//alpha;
       }
       CUDA_CALL(double2halfMat(A->devValuesH, A->nnz, vec, A->nnz, A->nnz, 1));
       cudaFree(vec);
@@ -181,7 +189,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
       if(jd->normMatrix > 5e+07 || jd->normMatrix < 5e-07){
          alpha = 1e+05/(jd->normMatrix);
          cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
-         jd->alpha = alpha;
+         jd->alpha = 1;//alpha;
       }
       CUDA_CALL(double2floatMat(A->devValuesF, A->nnz, vec, A->nnz, A->nnz, 1));
       cudaFree(vec);
@@ -225,36 +233,48 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
    /* Destroy Matrix */
    struct jdqmr16Matrix *A = jd->matrix;   
    
-   double *devVals  = A->devValuesD;
-   half   *devValsH = A->devValuesH;
-   float  *devValsF = A->devValuesF;
-   int    *devRows  = A->devRows;
-   int    *devCols  = A->devCols;
+   double *devVals    = A->devValuesD;
+   half   *devValsH   = A->devValuesH;
+   float  *devValsF   = A->devValuesF;
+   int    *devRows    = A->devRows;
+   int    *devCsrRows = A->devCsrRows;
+   int    *devCols    = A->devCols;
    int    nnz       = A->nnz;
    int    dim       = A->dim;
 
+   cudaFree(A->devValuesD);
+   cudaFree(A->devValuesH);
+   cudaFree(A->devValuesF);
+   cudaFree(A->devRows);
+   cudaFree(A->devCsrRows);
+   cudaFree(A->devCols);
+
+/*
    CUDA_CALL(cudaFree(devVals));
    CUDA_CALL(cudaFree(devValsH));
    CUDA_CALL(cudaFree(devValsF));
    CUDA_CALL(cudaFree(devCols));
    CUDA_CALL(cudaFree(devRows));
-
+   CUDA_CALL(cudaFree(devCsrRows));
+*/
 
    struct devSolverSpace *sp = jd->sp;
 
    free(sp->normr);
 
-   CUDA_CALL(cudaFree(sp->Qlocked));
-   CUDA_CALL(cudaFree(sp->Llocked)); 
+   cudaFree(sp->Qlocked);
+   cudaFree(sp->Llocked); 
 
-   CUDA_CALL(cudaFree(sp->AW));
-   CUDA_CALL(cudaFree(sp->P));
-   CUDA_CALL(cudaFree(sp->R));
-   CUDA_CALL(cudaFree(sp->W));
-   CUDA_CALL(cudaFree(sp->H));
-   CUDA_CALL(cudaFree(sp->Vprev));
-   CUDA_CALL(cudaFree(sp->V));
-   CUDA_CALL(cudaFree(sp->L));
+   cudaFree(sp->AW);
+   cudaFree(sp->P);
+   cudaFree(sp->R);
+   cudaFree(sp->QH);
+
+   cudaFree(sp->W);
+   cudaFree(sp->H);
+   cudaFree(sp->Vprev);
+   cudaFree(sp->V);
+   cudaFree(sp->L);
 
    free(jd->spInnerSolver);
    free(jd->spRestart);
@@ -287,7 +307,9 @@ void jdqmr16(struct jdqmr16Info *jd){
    double *Llocked   = sp->Llocked;
    int    &numLocked = sp->numLocked;
 
-   double *R  = sp->R;  int ldR = sp->ldR; /* Ritz vectors */
+   double *R  = sp->R;  int ldR  = sp->ldR; /* Ritz vectors */
+   double *QH = sp->QH; int ldQH = sp->ldQH; /* Eigenvectors of the projected system */
+
    double *P  = sp->P;  int ldP = sp->ldP;
    double *AW = sp->AW; int ldAW = sp->ldAW;
 
@@ -296,6 +318,7 @@ void jdqmr16(struct jdqmr16Info *jd){
    int     maxBasis  = jd->maxBasis;   /* maximum size of GD */
    int     maxIter   = jd->maxIter;    /* number of maximum iterations of GD */
    int     basisSize = 1;              /* basis size in blocks */
+
    double  tol       = jd->tol;        /* tolerance of convergence */
    double  normA     = jd->normMatrix; /* norm of sparse matrix */
    double  maxerr;
@@ -303,21 +326,23 @@ void jdqmr16(struct jdqmr16Info *jd){
 
    jd->numMatVecsfp64 = 0;
    jd->numMatVecsfp16 = 0;
-
    double *normr =  sp->normr;//(double*)malloc(sizeof(double)*numEvals);
    // Step 0.1: Initialize matrices and basis
    initBasis(W,ldW,H,ldH,V,ldV,L, AW, ldAW, dim,maxBasis,numEvals,1,jd); // basis initilization and H creation
 
    // Step 0.2: First approximation of eigenpairs
-   eigH(V, ldV, L, W,ldW, H, ldH, numEvals, basisSize,jd);  // first approximation of eigevectors
+   eigH(V, ldV, L, W,ldW, H, ldH, numEvals, basisSize, QH, ldQH,jd);  // first approximation of eigevectors
    // Step 0.3: Residual calculation
-   residual(R, ldR, V, ldV, L, numEvals, jd); 
-   
+   residual(R, ldR, V, ldV, L, AW, ldAW, QH, ldQH, numEvals,basisSize, jd);
+   for(int j=0;j<numEvals;j++){
+      cublasDnrm2(jd->gpuH->cublasH,dim,&R[0+j*ldR], 1, &normr[j]);
+   }
    /* main loop of JDQMR */
    for(int i=0;i<maxIter;i++){   
+
       /* Inner sQMR16 to be used here in the future */
-      //cudaMemcpy(P,R,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
-      innerSolver(P,ldP,R,ldR,normr,V,ldV,L,numEvals,dim,tol*normA, jd);
+      cudaMemcpy(P,R,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
+      //innerSolver(P,ldP,R,ldR,normr,V,ldV,L,numEvals,dim,tol*normA, jd);
       
       if(basisSize == maxBasis){
          /* no space left - Restart basis */
@@ -332,27 +357,27 @@ void jdqmr16(struct jdqmr16Info *jd){
       /* keep previous ritz vectors for restarting purposes*/
       cudaMemcpy(Vprev,V,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
       /* Find new Ritz pairs */
-      eigH(V, ldV, L, W,ldW, H, ldH, numEvals, basisSize,jd);  // first approximation of eigevectors
+      eigH(V, ldV, L, W,ldW, H, ldH, numEvals, basisSize, QH, ldQH, jd);  // first approximation of eigevectors
 
       /* Residual calculation */
-      residual(R, ldR, V, ldV, L, numEvals, jd); 
+      residual(R, ldR, W, ldW, L, AW, ldAW, QH, ldQH, numEvals,basisSize, jd);
 
       /* convergence check */
       int    numConverged = 0;
       //numLocked = 0;
+      numLocked = 0;
       for(int j=0;j<numEvals;j++){
          cublasDnrm2(jd->gpuH->cublasH,dim,&R[0+j*ldR], 1, &normr[j]);
+         if(normr[j] < tol*normA) numLocked++;
       }
-      /* locking new converged eigenpairs */
-      lock(V,ldV,L,R,ldR,normr,Qlocked,ldQlocked,Llocked,W,ldW,H,ldH,AW,ldAW,
-            numLocked,numEvals,maxBasis,basisSize,dim,tol*normA,jd);
 
+      /* locking new converged eigenpairs */
       if(numLocked == numEvals){
          /* RR projection with new eigenpairs and break */
-         cudaMemcpy(V,Qlocked,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
          initBasis(W,ldW,H,ldH,V,ldV,L, AW, ldAW, dim,1,numEvals,0,jd); // basis initilization and H creation
-         eigH(V, ldV, L, W,ldW, H, ldH, numEvals, 1,jd);  // first approximation of eigevectors
-         residual(R, ldR, V, ldV, L, numEvals, jd); 
+         eigH(V, ldV, L, W,ldW, H, ldH, numEvals, 1, QH, ldQH, jd);  // first approximation of eigevectors
+         residual(R, ldR, W, ldW, L, AW, ldAW, QH, ldQH, numEvals,basisSize, jd);
+
          int notFound = 0;
          for(int j=0;j<numEvals;j++){
             cublasDnrm2(jd->gpuH->cublasH,dim,&R[0+j*ldR], 1, &normr[j]);
@@ -362,7 +387,7 @@ void jdqmr16(struct jdqmr16Info *jd){
       }
 
       #if 0
-      if(i%50 == 0){
+      if(i%100 == 0){
          for(int j=0;j<numEvals;j++){
             printf("%%normr[%d]/normA = %e\n",i,normr[j]/normA);        
          }
