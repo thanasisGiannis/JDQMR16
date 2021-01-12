@@ -58,8 +58,14 @@ void expandBasis_init(double *W, int ldW, double *H, int ldH, double *P, int ldP
 
    /* AP = A*P */
    struct jdqmr16Matrix  *A = jd->matrix;
-   cusparseCreateCoo(&(spExpandBasis->descrA),dim,dim,A->nnz,A->devRows,A->devCols,A->devValuesD,
-							CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_64F);
+
+//   cusparseCreateCoo(&(spExpandBasis->descrA),dim,dim,A->nnz,A->devRows,A->devCols,A->devValuesD,
+//							CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_64F);
+
+   cusparseCreateCsr(&(spExpandBasis->descrA),dim,dim,A->nnz,A->devCsrRows,A->devCols,A->devValuesD,CUSPARSE_INDEX_32I,
+                     CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_64F);
+
+
 	cusparseCreateDnMat(&(spExpandBasis->descrP),dim,numEvals,ldP,(void*)P,CUDA_R_64F,CUSPARSE_ORDER_COL);
 	cusparseCreateDnMat(&(spExpandBasis->descrAP),dim,numEvals,spExpandBasis->ldAP,(void*)spExpandBasis->AP,CUDA_R_64F,CUSPARSE_ORDER_COL);
 
@@ -68,10 +74,10 @@ void expandBasis_init(double *W, int ldW, double *H, int ldH, double *P, int ldP
 
    cusparseSpMM_bufferSize(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE,
                         &one,spExpandBasis->descrA,spExpandBasis->descrP,&zero,
-                        spExpandBasis->descrAP,CUDA_R_64F,CUSPARSE_COOMM_ALG2,&(spExpandBasis->bufferSize));
+                        spExpandBasis->descrAP,CUDA_R_64F,CUSPARSE_SPMM_ALG_DEFAULT,&(spExpandBasis->bufferSize));
 
 
-   assert(spExpandBasis->bufferSize>0);
+   assert(spExpandBasis->bufferSize>=0);
 	cudaMalloc((void**)&(spExpandBasis->buffer),spExpandBasis->bufferSize);
 
 
@@ -88,33 +94,32 @@ void expandBasis_init(double *W, int ldW, double *H, int ldH, double *P, int ldP
    jd->gpuMemSpaceIntSize    = max(jd->gpuMemSpaceIntSize,memReqI);
    jd->gpuMemSpaceVoidSize   = max(jd->gpuMemSpaceVoidSize,memReqV);
 
-//return;
-
-
+#if 0
 	cudaFree(spExpandBasis->buffer);
    cudaFree(spExpandBasis->d_work);
    cudaFree(spExpandBasis->d_tau);
    cudaFree(spExpandBasis->devInfo);
    cudaFree(spExpandBasis->WTP);
    cudaFree(spExpandBasis->AP);
-
+#endif
 }
 
 void expandBasis_destroy(struct jdqmr16Info *jd){
 
    struct expandBasisSpace  *spExpandBasis = jd->spExpandBasis;
 
-/*
+#if 1
    cudaFree(spExpandBasis->WTP);
    cudaFree(spExpandBasis->d_tau);
    cudaFree(spExpandBasis->devInfo);
    cudaFree(spExpandBasis->d_work);
    cudaFree(spExpandBasis->buffer);
    cudaFree(spExpandBasis->AP);
-*/
+#endif
 }
 
-void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, double *Qlocked, int ldQlocked, int numLocked,
+
+void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, int numLocked,
                 double *AW, int ldAW, int &basisSize, int dim, int numEvals, struct jdqmr16Info *jd){
 
    struct gpuHandler        *gpuH          = jd->gpuH;
@@ -125,21 +130,25 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, dou
    cusparseHandle_t       cusparseH = gpuH->cusparseH;
 
 
-#if 1
+#if 0
    double *memD = jd->gpuMemSpaceDouble;
    int    *memI = jd->gpuMemSpaceInt;
    void   *memV = jd->gpuMemSpaceVoid;
 
 
-   double *WTP     = memD; memD+= basisSize*numEvals*numEvals;
+   double *WTP     = memD; memD += basisSize*numEvals*numEvals;
    int     ldWTP   = spExpandBasis->ldWTP;
-   double *d_tau   = memD; memD+= dim;
-   int    *devInfo = memI; memI+= 1;
-   double *d_work  = memD; memD+= spExpandBasis->lwork;
-   int     lwork   = spExpandBasis->lwork;
-   double *AP      = memD; 
+
+   double *d_tau   = memD; memD += dim;
+   int    *devInfo = memI; memI += 1;
+
+   double *AP      = memD; memD += dim*numEvals;
    int     ldAP    = spExpandBasis->ldAP;
 
+   double *d_work  = memD; memD += spExpandBasis->lwork;
+   int     lwork   = spExpandBasis->lwork;
+
+   void   *buffer  = memV;
 	cusparseCreateDnMat(&(spExpandBasis->descrAP),dim,numEvals,spExpandBasis->ldAP,
                      (void*)AP,CUDA_R_64F,CUSPARSE_ORDER_COL);
 
@@ -150,6 +159,7 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, dou
    double *d_work  = spExpandBasis->d_work;
    int     lwork   = spExpandBasis->lwork;
    double *AP = spExpandBasis->AP; int ldAP = spExpandBasis->ldAP;
+   void   *buffer  = spExpandBasis->buffer;
 
 
 #endif
@@ -163,22 +173,12 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, dou
                            W,CUDA_R_64F,ldW,P,CUDA_R_64F,ldP,&zero,
                            WTP,CUDA_R_64F,ldWTP,CUDA_R_64F,
                            CUBLAS_GEMM_DEFAULT));
+
    CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,basisSize*numEvals,&minus_one,
                            W,CUDA_R_64F,ldW,WTP,CUDA_R_64F,ldWTP,&one,
                            P,CUDA_R_64F,ldP,CUDA_R_64F,
                            CUBLAS_GEMM_DEFAULT));
 
-
-   /* P = - Qlocked*Qlocked'*P + P  */
-   // using W'P same buffer space
-   CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numLocked,numEvals,dim,&one,
-                           Qlocked,CUDA_R_64F,ldQlocked,P,CUDA_R_64F,ldP,&zero,
-                           WTP,CUDA_R_64F,ldWTP,CUDA_R_64F,
-                           CUBLAS_GEMM_DEFAULT));
-   CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,dim,numEvals,numLocked,&minus_one,
-                           Qlocked,CUDA_R_64F,ldQlocked,WTP,CUDA_R_64F,ldWTP,&one,
-                           P,CUDA_R_64F,ldP,CUDA_R_64F,
-                           CUBLAS_GEMM_DEFAULT));
 
    /* P = orth(P)  */
    cusolverDnDgeqrf(cusolverH,dim,numEvals,P,ldP,d_tau,d_work,lwork,devInfo);
@@ -187,7 +187,7 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, dou
    /* AP = A*P */
    cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,spExpandBasis->descrA,spExpandBasis->descrP,&zero,spExpandBasis->descrAP,CUDA_R_64F,
-             CUSPARSE_COOMM_ALG2,spExpandBasis->buffer);
+             CUSPARSE_SPMM_ALG_DEFAULT,buffer);
 
    /* H = [H W'*AP; P'*AW P'*AP*/
    // P'*AP   

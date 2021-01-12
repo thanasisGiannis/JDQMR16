@@ -1,15 +1,126 @@
 #include "../../include/jdqmr16.h"
 #include "../include/helper.h"
-
-
 #include <curand.h>
 #include <assert.h>
 #include <stdio.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
-
 #include "sqmr.h"
+
+
+void bsqmrD(double *X, int ldX,double *B, int ldB, int dim, int numEvals, double infNormB, struct jdqmr16Info *jd){
+
+
+
+   struct gpuHandler               *gpuH   = jd->gpuH;
+   cublasHandle_t                cublasH   = gpuH->cublasH;
+   cusparseHandle_t              cusparseH = gpuH->cusparseH;
+   cusolverDnHandle_t            cusolverH = gpuH->cusolverH;
+   struct innerSolverSpace       *spInnerSolver = jd->spInnerSolver;         
+   struct sqmrSpace              *spsqmr   = spInnerSolver->spSQmr;
+   int *info; cudaMalloc((void**)&info,sizeof(int));
+
+   // X = 0;
+   cudaMemset(X,0,ldX*numEvals*sizeof(double));
+
+   double *eyeNumEvals = (double*)malloc(numEvals*numEvals*sizeof(double));
+   for(int i=0;i<numEvals;i++)      
+      for(int j=0;j<numEvals;j++){
+         if(i==j)      
+            eyeNumEvals[i*numEvals+j] = 1;
+         else
+            eyeNumEvals[i*numEvals+j] = 0;
+      }
+
+   double *v1,*v2,*v3,*v3_;
+   double *p0,*p1,*p2;
+
+   double *a0,*a1;
+   double *b0,*b1;
+   double *c0,*c1;
+   double *d0,*d1;
+
+
+   cudaMalloc((void**)&v1,sizeof(double)*dim*numEvals);  cudaMemset(v1,0,sizeof(double)*dim*numEvals);
+   cudaMalloc((void**)&v2,sizeof(double)*dim*numEvals);  cudaMemset(v2,0,sizeof(double)*dim*numEvals);
+   cudaMalloc((void**)&v3,sizeof(double)*dim*numEvals);  cudaMemset(v3,0,sizeof(double)*dim*numEvals);
+   cudaMalloc((void**)&v3_,sizeof(double)*dim*numEvals); cudaMemset(v3_,0,sizeof(double)*dim*numEvals);
+
+   cudaMalloc((void**)&p0,sizeof(double)*dim*numEvals);  cudaMemset(p0,0,sizeof(double)*dim*numEvals);
+   cudaMalloc((void**)&p1,sizeof(double)*dim*numEvals);  cudaMemset(p1,0,sizeof(double)*dim*numEvals);
+   cudaMalloc((void**)&p2,sizeof(double)*dim*numEvals);  cudaMemset(p2,0,sizeof(double)*dim*numEvals);
+
+
+   cudaMalloc((void**)&a0,sizeof(double)*numEvals*numEvals); cudaMemset(a0,0,sizeof(double)*numEvals*numEvals);
+   cudaMalloc((void**)&a1,sizeof(double)*numEvals*numEvals); cudaMemset(a1,0,sizeof(double)*numEvals*numEvals);
+
+   cudaMalloc((void**)&b0,sizeof(double)*numEvals*numEvals); cudaMemset(b0,0,sizeof(double)*numEvals*numEvals);
+   cudaMalloc((void**)&b1,sizeof(double)*numEvals*numEvals); cudaMemset(b1,0,sizeof(double)*numEvals*numEvals);
+
+   cudaMalloc((void**)&c0,sizeof(double)*numEvals*numEvals); cudaMemset(c0,0,sizeof(double)*numEvals*numEvals);
+   cudaMalloc((void**)&c1,sizeof(double)*numEvals*numEvals); cudaMemset(c1,0,sizeof(double)*numEvals*numEvals);
+
+   cudaMalloc((void**)&d0,sizeof(double)*numEvals*numEvals); cudaMemset(d0,0,sizeof(double)*numEvals*numEvals);
+   cudaMalloc((void**)&d1,sizeof(double)*numEvals*numEvals); cudaMemset(d1,0,sizeof(double)*numEvals*numEvals);
+
+
+   /* a0 = a1 = d0 = d1 = I */
+   cudaMemcpy(a0,eyeNumEvals,sizeof(double)*numEvals*numEvals,cudaMemcpyHostToDevice);   
+   cudaMemcpy(a1,eyeNumEvals,sizeof(double)*numEvals*numEvals,cudaMemcpyHostToDevice);   
+   cudaMemcpy(d0,eyeNumEvals,sizeof(double)*numEvals*numEvals,cudaMemcpyHostToDevice);   
+   cudaMemcpy(d1,eyeNumEvals,sizeof(double)*numEvals*numEvals,cudaMemcpyHostToDevice);   
+
+
+   cudaMemcpy(v2,B,sizeof(double)*numEvals*dim,cudaMemcpyDeviceToDevice);
+
+
+   double *tau,*tau_;
+   cudaMalloc((void**)&tau,sizeof(double)*numEvals*numEvals);
+   cudaMalloc((void**)&tau_,sizeof(double)*numEvals*numEvals);
+
+
+   double *alpha,*vita2,*vita3;
+   
+
+   size_t workspaceInBytesOnDevice;
+   size_t workspaceInBytesOnHost;
+
+
+   CUSOLVER_CALL(cusolverDnXgeqrf_bufferSize(cusolverH, NULL,dim,numEvals,CUDA_R_16F,v2,dim,CUDA_R_16F,vita2,CUDA_R_16F,
+            &workspaceInBytesOnDevice,&workspaceInBytesOnHost));
+
+   void *bufferOnDevice; cudaMalloc((void**)&bufferOnDevice,workspaceInBytesOnDevice);
+   void *bufferOnHost = malloc(workspaceInBytesOnHost);
+
+   CUSOLVER_CALL(cusolverDnXgeqrf(cusolverH,NULL,dim,numEvals,CUDA_R_16F,v2,dim,CUDA_R_16F,vita2,CUDA_R_16F,
+                     bufferOnDevice,workspaceInBytesOnDevice, bufferOnHost, workspaceInBytesOnHost, info));
+
+   
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 void sqmrF(float *X, int ldX, float *B, int ldB, int dim, double infNormB, struct jdqmr16Info *jd){
@@ -20,8 +131,8 @@ void sqmrF(float *X, int ldX, float *B, int ldB, int dim, double infNormB, struc
    // this should be input in this function
    float ita    = 0.0;
    float thita_ = 0.0; 
-   int qmrMaxIt  = 100000000;// max(10*dim,1000);
-   float tol    = 1e-08;
+   int qmrMaxIt  = max(10*dim,1000);
+   float tol    = 1e-04;
 
    
    float Thita_ = 0.0;
@@ -89,8 +200,8 @@ void sqmrF(float *X, int ldX, float *B, int ldB, int dim, double infNormB, struc
    /* cusparse data initilization */
    struct jdqmr16Matrix  *A = jd->matrix;
    cusparseSpMatDescr_t descrA = spsqmr->descrA;
-   cusparseDnVecDescr_t descrd = spsqmr->descrd;
-   cusparseDnVecDescr_t descrw = spsqmr->descrw;
+   cusparseDnMatDescr_t descrd = spsqmr->descrd;
+   cusparseDnMatDescr_t descrw = spsqmr->descrw;
 
    size_t bufferSize = spsqmr->bufferSize;// = spsqmr->bufferSize;
    void *buffer = spsqmr->buffer;// = spsqmr->buffer;
@@ -113,9 +224,14 @@ void sqmrF(float *X, int ldX, float *B, int ldB, int dim, double infNormB, struc
    for(int i=0; i<qmrMaxIt; i++){
       jd->innerIterations++;
       /* w = A*d */
+/*
       cusparseSpMV(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,descrA,descrd,&zero,descrw,CUDA_R_32F,
              CUSPARSE_COOMV_ALG,buffer);
+*/
+      cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
+             &one,descrA,descrd,&zero,descrw,CUDA_R_32F,CUSPARSE_SPMM_ALG_DEFAULT,buffer);
+
       jd->numMatVecsfp16++;
 
       /* sigma = d'*w */
@@ -258,17 +374,30 @@ void sqmrF_init(float *X, int ldX, float *B, int ldB, int dim, double infNormB, 
 
    /* cusparse data initilization */
    struct jdqmr16Matrix  *A = jd->matrix;
-   cusparseCreateCoo(&(spsqmr->descrA),dim,dim,A->nnz,A->devRows,A->devCols,A->devValuesF,
-							CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_32F);
+
+//   cusparseCreateCoo(&(spsqmr->descrA),dim,dim,A->nnz,A->devRows,A->devCols,A->devValuesF,
+//							CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_32F);
 
 
-	cusparseCreateDnVec(&(spsqmr->descrd),dim,(void*)spsqmr->d,CUDA_R_32F);
-	cusparseCreateDnVec(&(spsqmr->descrw),dim,(void*)spsqmr->w,CUDA_R_32F);
 
+   cusparseCreateCsr(&(spsqmr->descrA),dim,dim,A->nnz,A->devCsrRows,A->devCols,A->devValuesF,CUSPARSE_INDEX_32I,
+                     CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_32F);
+
+//	cusparseCreateDnVec(&(spsqmr->descrd),dim,(void*)spsqmr->d,CUDA_R_32F);
+   cusparseCreateDnMat(&(spsqmr->descrd),dim,1,dim,(void*)spsqmr->d,CUDA_R_32F,CUSPARSE_ORDER_COL);
+
+//	cusparseCreateDnVec(&(spsqmr->descrw),dim,(void*)spsqmr->w,CUDA_R_32F);
+   cusparseCreateDnMat(&(spsqmr->descrw),dim,1,dim,(void*)spsqmr->w,CUDA_R_32F,CUSPARSE_ORDER_COL);
+
+/*
    cusparseSpMV_bufferSize(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,
                         &one,spsqmr->descrA,spsqmr->descrd,&zero,
                         spsqmr->descrw,CUDA_R_32F,CUSPARSE_COOMV_ALG,&spsqmr->bufferSize);
-
+*/
+   cusparseSpMM_bufferSize(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
+                           &one,spsqmr->descrA,spsqmr->descrd,
+                           &zero,spsqmr->descrw,CUDA_R_32F,
+                           CUSPARSE_SPMM_ALG_DEFAULT,&(spsqmr->bufferSize));
 
 
    assert(spsqmr->bufferSize>=0);
@@ -290,7 +419,7 @@ void sqmrD(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEva
    double ita    = 0.0;
    double thita_ = 0.0; 
    int qmrMaxIt  = max(10*dim,1000);
-   double tol    = 1e-08;
+   double tol    = 1e-04;
 
    
    double Thita_ = 0.0;
@@ -357,8 +486,8 @@ void sqmrD(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEva
    /* cusparse data initilization */
    struct jdqmr16Matrix  *A = jd->matrix;
    cusparseSpMatDescr_t descrA = spsqmr->descrA;
-   cusparseDnVecDescr_t descrd = spsqmr->descrd;
-   cusparseDnVecDescr_t descrw = spsqmr->descrw;
+   cusparseDnMatDescr_t descrd = spsqmr->descrd;
+   cusparseDnMatDescr_t descrw = spsqmr->descrw;
 
    size_t bufferSize = spsqmr->bufferSize;// = spsqmr->bufferSize;
    void *buffer = spsqmr->buffer;// = spsqmr->buffer;
@@ -395,10 +524,17 @@ void sqmrD(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEva
                                  CUBLAS_GEMM_DEFAULT));
       }
       /* w = A*d */
+/*
       cusparseSpMV(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,descrA,descrd,&zero,descrw,CUDA_R_64F,
              CUSPARSE_COOMV_ALG,buffer);
+*/
+      cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
+          &one,descrA,descrd,&zero,descrw,CUDA_R_64F,
+          CUSPARSE_SPMM_ALG_DEFAULT,buffer);
       jd->numMatVecsfp64++;
+
+
       /* w = w-VVTw */
       if (V!=0){
          CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,numEvals,1,dim,&one,
@@ -553,16 +689,31 @@ void sqmrD_init(double *X, int ldX, double *B, int ldB, double *V,int ldV, int n
 
    /* cusparse data initilization */
    struct jdqmr16Matrix  *A = jd->matrix;
-   cusparseCreateCoo(&(spsqmr->descrA),dim,dim,A->nnz,A->devRows,A->devCols,A->devValuesD,
-							CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_64F);
+//   cusparseCreateCoo(&(spsqmr->descrA),dim,dim,A->nnz,A->devRows,A->devCols,A->devValuesD,
+//							CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_64F);
 
 
-	cusparseCreateDnVec(&(spsqmr->descrd),dim,(void*)spsqmr->d,CUDA_R_64F);
-	cusparseCreateDnVec(&(spsqmr->descrw),dim,(void*)spsqmr->w,CUDA_R_64F);
 
+   cusparseCreateCsr(&(spsqmr->descrA),dim,dim,A->nnz,A->devCsrRows,A->devCols,A->devValuesD,CUSPARSE_INDEX_32I,
+                     CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_64F);
+
+
+//	cusparseCreateDnVec(&(spsqmr->descrd),dim,(void*)spsqmr->d,CUDA_R_64F);
+   cusparseCreateDnMat(&(spsqmr->descrd),dim,1,dim,(void*)spsqmr->d,CUDA_R_64F,CUSPARSE_ORDER_COL);
+
+//	cusparseCreateDnVec(&(spsqmr->descrw),dim,(void*)spsqmr->w,CUDA_R_64F);
+   cusparseCreateDnMat(&(spsqmr->descrw),dim,1,dim,(void*)spsqmr->w,CUDA_R_64F,CUSPARSE_ORDER_COL);
+
+/*
    cusparseSpMV_bufferSize(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,
                         &one,spsqmr->descrA,spsqmr->descrd,&zero,
                         spsqmr->descrw,CUDA_R_64F,CUSPARSE_COOMV_ALG,&spsqmr->bufferSize);
+*/
+   cusparseSpMM_bufferSize(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
+                           &one,spsqmr->descrA,spsqmr->descrd,
+                           &zero,spsqmr->descrw,CUDA_R_64F,
+                           CUSPARSE_SPMM_ALG_DEFAULT,&(spsqmr->bufferSize));
+
 
 
 
@@ -609,16 +760,31 @@ void sqmr_init(half *X, int ldX, half *B, int ldB, int dim, double infNormB, str
 
    /* cusparse data initilization */
    struct jdqmr16Matrix  *A = jd->matrix;
+
+/*
    cusparseCreateCoo(&(spsqmr->descrA),dim,dim,A->nnz,A->devRows,A->devCols,A->devValuesH,
 							CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_16F);
 
+*/
+   cusparseCreateCsr(&(spsqmr->descrA),dim,dim,A->nnz,A->devCsrRows,A->devCols,A->devValuesH,CUSPARSE_INDEX_32I,
+                     CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_16F);
 
-	cusparseCreateDnVec(&(spsqmr->descrd),dim,(void*)spsqmr->d,CUDA_R_16F);
-	cusparseCreateDnVec(&(spsqmr->descrw),dim,(void*)spsqmr->w,CUDA_R_16F);
 
+//	cusparseCreateDnVec(&(spsqmr->descrd),dim,(void*)spsqmr->d,CUDA_R_16F);
+   cusparseCreateDnMat(&(spsqmr->descrd),dim,1,dim,(void*)spsqmr->d,CUDA_R_16F,CUSPARSE_ORDER_COL);
+
+//	cusparseCreateDnVec(&(spsqmr->descrw),dim,(void*)spsqmr->w,CUDA_R_16F);
+   cusparseCreateDnMat(&(spsqmr->descrw),dim,1,dim,(void*)spsqmr->w,CUDA_R_16F,CUSPARSE_ORDER_COL);
+
+/*
    cusparseSpMV_bufferSize(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,
                         &one,spsqmr->descrA,spsqmr->descrd,&zero,
                         spsqmr->descrw,CUDA_R_16F,CUSPARSE_COOMV_ALG,&spsqmr->bufferSize);
+*/
+   cusparseSpMM_bufferSize(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
+                           &one,spsqmr->descrA,spsqmr->descrd,
+                           &zero,spsqmr->descrw,CUDA_R_16F,
+                           CUSPARSE_SPMM_ALG_DEFAULT,&(spsqmr->bufferSize));
 
 
 
@@ -654,7 +820,7 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
    float thita_ = 0.0; 
 
    int qmrMaxIt  = max(10*dim,1000);
-   double tol    = 1e-08;
+   float tol    = 1e-04;
 
    
    float Thita_ = 0.0;
@@ -724,8 +890,8 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
    /* cusparse data initilization */
    struct jdqmr16Matrix  *A = jd->matrix;
    cusparseSpMatDescr_t descrA = spsqmr->descrA;
-   cusparseDnVecDescr_t descrd = spsqmr->descrd;
-   cusparseDnVecDescr_t descrw = spsqmr->descrw;
+   cusparseDnMatDescr_t descrd = spsqmr->descrd;
+   cusparseDnMatDescr_t descrw = spsqmr->descrw;
 
    size_t bufferSize = spsqmr->bufferSize;// = spsqmr->bufferSize;
    void *buffer = spsqmr->buffer;// = spsqmr->buffer;
@@ -751,9 +917,16 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
       jd->innerIterations++;
       
       /* w = A*d */
+/*
       cusparseSpMV(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,descrA,descrd,&zero,descrw,CUDA_R_16F,
              CUSPARSE_COOMV_ALG,buffer);
+*/
+      cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
+          &one,descrA,descrd,&zero,descrw,CUDA_R_16F,
+          CUSPARSE_SPMM_ALG_DEFAULT,buffer);
+
+
       jd->numMatVecsfp16++;
 
       /* sigma = d'*w */

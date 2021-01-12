@@ -17,6 +17,10 @@ void lock_init(double *V, int ldV, double *L, double *R, int ldR, double *normr,
             double *Qlocked, int ldQlocked, double *Llocked, double *W, int ldW, double *H, int ldH, double *AW, int ldAW, 
             int &numLocked, int &numEvals, int maxBasis, int &basisSize, int dim, double tol, struct jdqmr16Info *jd){
 
+   int memReqD    = 0;
+   int memReqI    = 0;
+   size_t memReqV = 0;
+
    struct lockSpace *spLock = jd->spLock;
 
    cudaMalloc((void**)&(spLock->QTV),sizeof(double)*numEvals*numEvals);
@@ -31,6 +35,23 @@ void lock_init(double *V, int ldV, double *L, double *R, int ldR, double *normr,
    spLock->Lh = (double *)malloc(sizeof(double)*numEvals);
    spLock->Llockedh = (double *)malloc(sizeof(double)*numEvals);
 
+
+   memReqD += numEvals*numEvals;
+   memReqD += numEvals*numEvals;
+   memReqD += dim*numEvals;
+
+
+
+   jd->gpuMemSpaceDoubleSize = max(jd->gpuMemSpaceDoubleSize,memReqD);
+   jd->gpuMemSpaceIntSize    = max(jd->gpuMemSpaceIntSize,memReqI);
+   jd->gpuMemSpaceVoidSize   = max(jd->gpuMemSpaceVoidSize,memReqV);
+
+//   return;
+#if 0
+   cudaFree(spLock->QTV);
+   cudaFree(spLock->QTR);
+   cudaFree(spLock->PR);
+#endif
 }
 
 void lock_destroy(struct jdqmr16Info *jd){
@@ -40,17 +61,19 @@ void lock_destroy(struct jdqmr16Info *jd){
 
    free(spLock->Lh);
    free(spLock->Llockedh);
+#if 1
    cudaFree(spLock->QTV);
    cudaFree(spLock->QTR);
    cudaFree(spLock->PR);
-
+#endif
 }
 
 
 void lock(double *V, int ldV, double *L, double *R, int ldR, double *normr,
-            double *Qlocked, int ldQlocked, double *Llocked, double *W, int ldW, double *H, int ldH, double *AW, int ldAW, 
-            int &numLocked, int &numEvals, int maxBasis, int &basisSize, int dim, double tol, struct jdqmr16Info *jd){
-
+            double *Qlocked, int ldQlocked, double *Llocked, double *W, int ldW,
+            double *H, int ldH, double *AW, int ldAW, double *QH,
+            int ldQH, int &numLocked, int &numEvals, int maxBasis, int &basisSize, 
+            int dim, double tol, struct jdqmr16Info *jd){
 
 
    if(jd->locking == 0){
@@ -60,7 +83,6 @@ void lock(double *V, int ldV, double *L, double *R, int ldR, double *normr,
             numLocked ++;
          }
       }
-      //printf("numLocked: %d\n\n",numLocked);
       if(numLocked == numEvals){
          cudaMemcpy(Qlocked,V,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
       }
@@ -69,17 +91,32 @@ void lock(double *V, int ldV, double *L, double *R, int ldR, double *normr,
    }
    struct lockSpace *spLock = jd->spLock;
 
+#if 1
 
-   /* V = V - Q*Q'*V */
+   double *memD = jd->gpuMemSpaceDouble;
+   int    *memI = jd->gpuMemSpaceInt;
+   void   *memV = jd->gpuMemSpaceVoid;
+
+   double *QTV = memD; memD += numEvals*numEvals;
+   double *QTR = memD; memD += numEvals*numEvals;
+   double *PR  = memD; 
+
+   int ldQTV =  spLock->ldQTV;// numEvals;
+   int ldQTR = spLock->ldQTR; 
+   int ldPR = spLock->ldPR;
+
+#else
+
    double *QTV = spLock->QTV; //cudaMalloc((void**)&QTV,sizeof(double)*numEvals*numEvals);
    int ldQTV =  spLock->ldQTV;// numEvals;
-
    double *QTR = spLock->QTR;// cudaMalloc((void**)&QTR,sizeof(double)*numEvals*numEvals);
    int ldQTR = spLock->ldQTR; 
    double *PR = spLock->PR;// cudaMalloc((void**)&PR,sizeof(double)*dim*numEvals);
    int ldPR = spLock->ldPR;
 
+#endif
 
+   /* V = V - Q*Q'*V */
    struct gpuHandler *gpuH = jd->gpuH;   
    cublasHandle_t cublasH = gpuH->cublasH;
 
@@ -116,6 +153,7 @@ void lock(double *V, int ldV, double *L, double *R, int ldR, double *normr,
       return;
    }
 
+
    if(numEvalsFound>0){
       double minus_one = -1.0;
       double zero      =  0.0;
@@ -133,8 +171,9 @@ void lock(double *V, int ldV, double *L, double *R, int ldR, double *normr,
       /* init basis with new V */
       initBasis(W,ldW,H,ldH,V,ldV,L, AW, ldAW, dim,maxBasis,numEvals,0,jd); 
       basisSize = 1;
-      eigH(V, ldV, L, W,ldW, H, ldH, numEvals, basisSize,jd);
-      residual(R, ldR, V, ldV, L, numEvals, jd);
+      eigH(V, ldV, L, W,ldW, H, ldH, numEvals, basisSize, QH, ldQH, jd);
+      //residual(R, ldR, V, ldV, L, numEvals, jd);
+      residual(R, ldR, V, ldV, L, AW, ldAW, QH, ldQH, numEvals,basisSize, jd);
       return;
    }
 
@@ -246,8 +285,9 @@ void lock(double *V, int ldV, double *L, double *R, int ldR, double *normr,
       /* init basis with new V */
       initBasis(W,ldW,H,ldH,V,ldV,L, AW, ldAW, dim,maxBasis,numEvals,0,jd); 
       basisSize = 1;
-      eigH(V, ldV, L, W,ldW, H, ldH, numEvals, basisSize,jd);
-      residual(R, ldR, V, ldV, L, numEvals, jd);
+      eigH(V, ldV, L, W,ldW, H, ldH, numEvals, basisSize, QH, ldQH, jd);
+      //residual(R, ldR, V, ldV, L, numEvals, jd);
+      residual(R, ldR, V, ldV, L, AW, ldAW, QH, ldQH, numEvals,basisSize, jd);
       return;
    }
 }

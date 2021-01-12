@@ -44,8 +44,13 @@ void initBasis_init(double *W, int ldW, double *H, int ldH, double *V, int ldV, 
    double zero = 0.0;
    cusparseHandle_t cusparseH = gpuH->cusparseH;
    struct jdqmr16Matrix  *A = jd->matrix;
-   cusparseCreateCoo(&(spInitBasis->descrA),dim,dim,A->nnz,A->devRows,A->devCols,A->devValuesD,
-               							CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_64F);
+//   cusparseCreateCoo(&(spInitBasis->descrA),dim,dim,A->nnz,A->devRows,A->devCols,A->devValuesD,
+//               							CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_64F);
+
+   cusparseCreateCsr(&(spInitBasis->descrA),dim,dim,A->nnz,A->devCsrRows,A->devCols,A->devValuesD,CUSPARSE_INDEX_32I,
+                     CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_64F);
+
+
 	cusparseCreateDnMat(&(spInitBasis->descrV),dim,numEvals,dim,V,CUDA_R_64F,CUSPARSE_ORDER_COL);
    cusparseCreateDnMat(&(spInitBasis->descrAV),dim,numEvals,dim,spInitBasis->AV,CUDA_R_64F,CUSPARSE_ORDER_COL);
 
@@ -53,7 +58,7 @@ void initBasis_init(double *W, int ldW, double *H, int ldH, double *V, int ldV, 
    size_t bufferSize = -1;
 	cusparseSpMM_bufferSize(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
                         &one,spInitBasis->descrA,spInitBasis->descrV,&zero,spInitBasis->descrAV,
-                        CUDA_R_64F,CUSPARSE_COOMM_ALG2,&bufferSize);
+                        CUDA_R_64F,CUSPARSE_SPMM_ALG_DEFAULT,&bufferSize);
 
 
    cudaMalloc((void**)&(spInitBasis->externalBuffer),bufferSize);
@@ -69,12 +74,13 @@ void initBasis_init(double *W, int ldW, double *H, int ldH, double *V, int ldV, 
    jd->gpuMemSpaceIntSize    = max(jd->gpuMemSpaceIntSize,memReqI);
    jd->gpuMemSpaceVoidSize   = max(jd->gpuMemSpaceVoidSize,memReqV);
 
-
+#if 0
    cudaFree(spInitBasis->d_tau);
    cudaFree(spInitBasis->devInfo);
    cudaFree(spInitBasis->d_work);
    cudaFree(spInitBasis->externalBuffer);
    cudaFree(spInitBasis->AV);
+#endif
 }
 
 
@@ -82,11 +88,13 @@ void initBasis_destroy(struct jdqmr16Info *jd){
 
    struct initBasisSpace *spInitBasis = jd->spInitBasis;
 
-//   cudaFree(spInitBasis->externalBuffer);
-//   cudaFree(spInitBasis->d_tau);
-//   cudaFree(spInitBasis->devInfo);
-//   cudaFree(spInitBasis->d_work);
-//   cudaFree(spInitBasis->AV);
+#if 1
+   cudaFree(spInitBasis->externalBuffer);
+   cudaFree(spInitBasis->d_tau);
+   cudaFree(spInitBasis->devInfo);
+   cudaFree(spInitBasis->d_work);
+   cudaFree(spInitBasis->AV);
+#endif
 }
 
 void initBasis(double *W, int ldW, double *H, int ldH, double *V, int ldV, double *L, double *AW, int ldAW,
@@ -110,7 +118,7 @@ void initBasis(double *W, int ldW, double *H, int ldH, double *V, int ldV, doubl
    cusolverDnHandle_t cusolverH = gpuH->cusolverH;
    struct initBasisSpace *spInitBasis = jd->spInitBasis;
 
-#if 1
+#if 0
 
    double *memD = jd->gpuMemSpaceDouble;
    int    *memI = jd->gpuMemSpaceInt;
@@ -165,7 +173,7 @@ void initBasis(double *W, int ldW, double *H, int ldH, double *V, int ldV, doubl
 
    cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,&one,
              spInitBasis->descrA,spInitBasis->descrV,&zero,spInitBasis->descrAV,
-             CUDA_R_64F,CUSPARSE_COOMM_ALG2,buffer);
+             CUDA_R_64F,CUSPARSE_SPMM_ALG_DEFAULT,buffer);
 
 
    cudaMemcpy(AW,AV,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);

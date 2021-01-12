@@ -21,4 +21,9 @@ void sqmrD(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEva
 
 void sqmrD_destroy(struct jdqmr16Info *jd);
 
+
+
+void bsqmrD(double *X, int ldX,double *B, int ldB, int dim, int numEvals, double infNormB, struct jdqmr16Info *jd);
+
+
 #endif

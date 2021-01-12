@@ -59,8 +59,12 @@ void restart_init(double *W, int ldW, double *H, int ldH,
    spRestart->ldAW = dim;
 
    struct jdqmr16Matrix  *A = jd->matrix;
-   cusparseCreateCoo(&(spRestart->descrA),dim,dim,A->nnz,A->devRows,A->devCols,A->devValuesD,
-							CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_64F);
+//   cusparseCreateCoo(&(spRestart->descrA),dim,dim,A->nnz,A->devRows,A->devCols,A->devValuesD,
+//							CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_64F);
+
+   cusparseCreateCsr(&(spRestart->descrA),dim,dim,A->nnz,A->devCsrRows,A->devCols,A->devValuesD,CUSPARSE_INDEX_32I,
+                  CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_64F);
+
 	cusparseCreateDnMat(&(spRestart->descrW),dim,3*numEvals,ldW,W,CUDA_R_64F,CUSPARSE_ORDER_COL);
 	cusparseCreateDnMat(&(spRestart->descrAW),dim,3*numEvals,spRestart->ldAW,spRestart->AW,CUDA_R_64F,CUSPARSE_ORDER_COL);
 
@@ -69,9 +73,9 @@ void restart_init(double *W, int ldW, double *H, int ldH,
    double one  = 1.0;
    cusparseSpMM_bufferSize(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE,
                         &one,spRestart->descrA,spRestart->descrW,&zero,
-                        spRestart->descrAW,CUDA_R_64F,CUSPARSE_COOMM_ALG2,&(spRestart->bufferSize));
+                        spRestart->descrAW,CUDA_R_64F,CUSPARSE_SPMM_ALG_DEFAULT,&(spRestart->bufferSize));
 
-   assert(spRestart->bufferSize>0);
+   assert(spRestart->bufferSize>=0);
 	cudaMalloc((void**)&(spRestart->buffer),spRestart->bufferSize);
 
 
@@ -89,27 +93,26 @@ void restart_init(double *W, int ldW, double *H, int ldH,
    jd->gpuMemSpaceIntSize    = max(jd->gpuMemSpaceIntSize,memReqI);
    jd->gpuMemSpaceVoidSize   = max(jd->gpuMemSpaceVoidSize,memReqV);
 
-//return;
-
+#if 0
    cudaFree(spRestart->AW);
    cudaFree(spRestart->d_tau);
    cudaFree(spRestart->devInfo);
    cudaFree(spRestart->d_work);
 	cudaFree(spRestart->buffer);
-
+#endif
 }
 
 void restart_destroy(struct jdqmr16Info *jd){
 
    struct restartSpace *spRestart = jd->spRestart;
 
-/*
+#if 1
    cudaFree(spRestart->AW);
    cudaFree(spRestart->d_tau);
    cudaFree(spRestart->devInfo);
    cudaFree(spRestart->d_work);
    cudaFree(spRestart->buffer);
-*/
+#endif
 }
 
 void restart(double *W, int ldW, double *H, int ldH, 
@@ -126,7 +129,7 @@ void restart(double *W, int ldW, double *H, int ldH,
 
    struct restartSpace *spRestart = jd->spRestart;
 
-#if 1
+#if 0
 
    double *memD = jd->gpuMemSpaceDouble;
    int    *memI = jd->gpuMemSpaceInt;
@@ -186,7 +189,7 @@ void restart(double *W, int ldW, double *H, int ldH,
 
    cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,descrA,descrW,&zero,descrAW,CUDA_R_64F,
-             CUSPARSE_COOMM_ALG2,buffer);
+             CUSPARSE_SPMM_ALG_DEFAULT,buffer);
 
    /* W = W'*AW */
    CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,3*numEvals,3*numEvals,dim,&one,

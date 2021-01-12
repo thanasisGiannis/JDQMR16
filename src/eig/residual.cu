@@ -11,78 +11,15 @@
 
 
 
-void residual_init(double *R, int ldR, double *V, int ldV, double *L, int numEvals, struct jdqmr16Info *jd){
- 
-   struct jdqmr16Matrix  *A = jd->matrix;
-   int dim    = A->dim;
 
-   int memReqD    = 0;
-   int memReqI    = 0;
-   size_t memReqV = 0;
+void residual_init(double *R, int ldR, double *V, int ldV, double *L, int numEvals, struct jdqmr16Info *jd){}
+void residual_destroy(struct jdqmr16Info *jd){}
 
 
-   /* handlers for gpu and jdqmr16 */
-   struct gpuHandler *gpuH    = jd->gpuH;
-   struct eigHSpace  *spEig   = jd->spEigH;
-   struct residualSpace *spRes = jd->spResidual;
-   
-   cusolverDnHandle_t cusolverH = gpuH->cusolverH;
-   cublasHandle_t     cublasH   = gpuH->cublasH;
-   cusparseHandle_t   cusparseH = gpuH->cusparseH;
+void residual(double *R, int ldR, double *V, int ldV, double *L, double *AV, int ldAV, double *QH, int ldQH,
+               int numEvals, int basisSize, struct jdqmr16Info *jd){
 
-
-
-   cudaMalloc((void**)&(spRes->VL),sizeof(double)*dim*numEvals);
-
-
-   spRes->ldVL = dim;
-   spRes->hL = (double*)malloc(sizeof(double)*numEvals);
-
-
-   // R = AV
-   cusparseCreateCoo(&(spRes->descrA),dim,dim,A->nnz,A->devRows,A->devCols,A->devValuesD,
-							CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_64F);
-	cusparseCreateDnMat(&(spRes->descrV),dim,numEvals,ldV,(void*)V,CUDA_R_64F,CUSPARSE_ORDER_COL);
-	cusparseCreateDnMat(&(spRes->descrR),dim,numEvals,ldR,(void*)R,CUDA_R_64F,CUSPARSE_ORDER_COL);
-
-   double one  = 1.0;
-   double zero = 0.0;
-
-   cusparseSpMM_bufferSize(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE,
-                        &one,spRes->descrA,spRes->descrV,&zero,
-                        spRes->descrR,CUDA_R_64F,CUSPARSE_COOMM_ALG2,&(spRes->bufferSize));
-
-
-   assert(spRes->bufferSize>0);
-	cudaMalloc((void**)&(spRes->buffer),spRes->bufferSize);
-
-   memReqD += dim*numEvals;
-   memReqV += spRes->bufferSize;
-
-   jd->gpuMemSpaceDoubleSize = max(jd->gpuMemSpaceDoubleSize,memReqD);
-   jd->gpuMemSpaceIntSize    = max(jd->gpuMemSpaceIntSize,memReqI);
-   jd->gpuMemSpaceVoidSize   = max(jd->gpuMemSpaceVoidSize,memReqV);
-
-   cudaFree(spRes->VL);
-   cudaFree(spRes->buffer);
-}
-
-void residual_destroy(struct jdqmr16Info *jd){
-
-   struct residualSpace *spRes = jd->spResidual;
-   
-//   cudaFree(spRes->buffer);
-//   cudaFree(spRes->VL);
-   free(spRes->hL);
-
-
-}
-
-
-void residual(double *R, int ldR, double *V, int ldV, double *L, int numEvals, struct jdqmr16Info *jd){
-
-
-   
+//     R = AV*QH-V*QH*L;
    struct jdqmr16Matrix  *A = jd->matrix;
    int dim    = A->dim;
 
@@ -95,40 +32,25 @@ void residual(double *R, int ldR, double *V, int ldV, double *L, int numEvals, s
    cublasHandle_t     cublasH   = gpuH->cublasH;
    cusparseHandle_t   cusparseH = gpuH->cusparseH;
 
-#if 1
-   double *memD = jd->gpuMemSpaceDouble;
-   int    *memI = jd->gpuMemSpaceInt;
-   void   *memV = jd->gpuMemSpaceVoid;
-
-   double *VL     = memD; int ldVL = spRes->ldVL;
-   void   *buffer = memV;
-
-#else
-   double *VL     = spRes->VL; int ldVL = spRes->ldVL;
-   void   *buffer = spRes->buffer;
-#endif
-   double *hL = spRes->hL;
-   cudaMemcpy(spRes->hL,L,sizeof(double)*numEvals,cudaMemcpyDeviceToHost); 
-
-   // VL = V
-   cudaMemcpy(VL,V,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice); 
-   // VL = VL*L
-   double *alpha,*x;
-	int incx = 1;
-
-   cublasDdgmm(cublasH,CUBLAS_SIDE_RIGHT,dim,numEvals,VL,ldVL,L,1,VL,ldVL);
-   // R = AV
-
    double one  = 1.0;
    double zero = 0.0;
-
-   cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
-             &one,spRes->descrA,spRes->descrV,&zero,spRes->descrR,CUDA_R_64F,CUSPARSE_COOMM_ALG2,buffer);
-   jd->numMatVecsfp64 += numEvals;
-
-   /* R = R-VL */
    double minus_one = -1.0;
-   cublasDgeam(cublasH,CUBLAS_OP_N, CUBLAS_OP_N,dim,numEvals,&one,R, ldR,
-                          &minus_one,VL,ldVL,R,ldR);
 
+   // R = AV*QH
+   cublasDgemm(cublasH,CUBLAS_OP_N, CUBLAS_OP_N,dim,numEvals, basisSize*numEvals,
+                           &one,AV, ldAV,QH,ldQH,&zero,R,ldR);
+
+   // QH = QH*L
+   cublasDdgmm(cublasH,CUBLAS_SIDE_RIGHT,basisSize*numEvals,numEvals,QH,ldQH,L,1,QH,ldQH);
+
+   // R = R-V*QH;
+   cublasDgemm(cublasH,CUBLAS_OP_N, CUBLAS_OP_N,dim,numEvals, basisSize*numEvals,
+                           &minus_one,V, ldV,QH,ldQH,&one,R,ldR);
 }
+
+
+
+
+
+
+

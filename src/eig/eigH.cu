@@ -52,11 +52,12 @@ void eigH_init(double *W, int ldW, double *L, double *H, int ldH, int numEvals, 
    jd->gpuMemSpaceIntSize    = max(jd->gpuMemSpaceIntSize,memReqI);
    jd->gpuMemSpaceVoidSize   = max(jd->gpuMemSpaceVoidSize,memReqV);
 
+#if 0
    cudaFree(spEig->QH);
    cudaFree(spEig->LH);
    cudaFree(spEig->devInfo);
    cudaFree(spEig->d_work);
-
+#endif
 }
 
 void eigH_destroy(struct jdqmr16Info *jd){
@@ -64,17 +65,18 @@ void eigH_destroy(struct jdqmr16Info *jd){
    struct gpuHandler *gpuH    = jd->gpuH;
    struct eigHSpace  *spEig   = jd->spEigH;
 
-//   cudaFree(spEig->QH);
-//   cudaFree(spEig->LH);
-//   cudaFree(spEig->devInfo);
-//   cudaFree(spEig->d_work);
-
+#if 1
+   cudaFree(spEig->QH);
+   cudaFree(spEig->LH);
+   cudaFree(spEig->devInfo);
+   cudaFree(spEig->d_work);
+#endif
 
 }
 
 
 
-void eigH(double *V, int ldV, double *L, double *W, int ldW, double *H, int ldH, int numEvals, int basisSize, struct jdqmr16Info *jd){
+void eigH(double *V, int ldV, double *L, double *W, int ldW, double *H, int ldH, int numEvals, int basisSize, double* QH,int ldQH, struct jdqmr16Info *jd){
 
 
 
@@ -88,29 +90,31 @@ void eigH(double *V, int ldV, double *L, double *W, int ldW, double *H, int ldH,
    cublasHandle_t     cublasH   = gpuH->cublasH;
 
    /* copy H to QH so syevd can handle the eigenvectors correctly */ 
-#if 1
+#if 0
    double *memD = jd->gpuMemSpaceDouble;
    int    *memI = jd->gpuMemSpaceInt;
    void   *memV = jd->gpuMemSpaceVoid;
 
 
    double *LH      = memD; memD += (numEvals*basisSize);
-   int     ldQH    = spEig->ldQH;
-   double *QH      = memD; memD += ldQH*numEvals*basisSize;
+   //int     ldQH    = spEig->ldQH;
+   //double *QH      = memD; memD += ldQH*numEvals*basisSize;
    double *d_work  = memD;
    int    *devInfo = memI;
 
 #else
    double *LH   = spEig->LH;
-   double *QH   = spEig->QH;
-   int     ldQH = spEig->ldQH;
+   //double *QH   = spEig->QH;
+   //int     ldQH = spEig->ldQH;
    double *d_work = spEig->d_work;
    int    *devInfo = spEig->devInfo;
 #endif
    double one  = 1.0;
    double zero = 0.0;
 
+//   cudaMemset(QH,0,sizeof(double)*ldQH*sizeQH);
    cudaMemset(QH,0,sizeof(double)*ldQH*sizeQH);
+//return;
    cublasDgeam(cublasH,CUBLAS_OP_N,CUBLAS_OP_N,sizeQH,sizeQH,&one,H, ldH,&zero,QH, ldQH, QH,ldQH);
 
    cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_VECTOR; // compute eigenvalues and eigenvectors.

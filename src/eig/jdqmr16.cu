@@ -49,8 +49,10 @@ void init_jdqmr16(struct jdqmr16Info *jd){
  
    /* initialize data to device */
    CUDA_CALL(cudaMalloc((void**)&(A->devValuesD),sizeof(double)*nnz));
+#if 0
    CUDA_CALL(cudaMalloc((void**)&(A->devValuesF),sizeof(double)*nnz));
    CUDA_CALL(cudaMalloc((void**)&(A->devValuesH),sizeof(half)*nnz));
+#endif
 
    CUDA_CALL(cudaMalloc((void**)&(A->devCols),sizeof(int)*nnz));
    CUDA_CALL(cudaMalloc((void**)&(A->devRows),sizeof(int)*nnz));
@@ -99,7 +101,7 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    CUDA_CALL(cudaMalloc((void**)&sp->QH,sizeof(double)*maxBasis*numEvals*maxBasis*numEvals));sp->ldQH    = maxBasis*numEvals;
 
 
-   CUDA_CALL(cudaMalloc((void**)&sp->Qlocked,sizeof(double)*numEvals*dim));                  sp->ldQlocked= dim;
+//   CUDA_CALL(cudaMalloc((void**)&sp->Qlocked,sizeof(double)*numEvals*dim));                  sp->ldQlocked= dim;
    CUDA_CALL(cudaMalloc((void**)&sp->Llocked,sizeof(double)*numEvals)); 
    sp->numLocked = 0;
 
@@ -143,9 +145,11 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    // init locking /* GPU Global Mem Done */
    jd->spLock = (struct lockSpace*)malloc(sizeof(struct lockSpace));
    sp->maxLockedVals = 2*numEvals;
+/*   
    lock_init(sp->V, sp->ldV, sp->L, sp->R, sp->ldR, NULL,sp->Qlocked, sp->ldQlocked,
              sp->Llocked,sp->W,sp->ldW,sp->H,sp->ldH,sp->AW,sp->ldAW, 
             sp->numLocked, numEvals, maxBasis, sp->numLocked, dim, 1e-08,jd);
+*/
    if(jd->locking != 1 && jd->locking != 0 ){
       jd->locking = 0;   
    }
@@ -165,36 +169,6 @@ void init_jdqmr16(struct jdqmr16Info *jd){
       }
    }
 
-   jd->alpha = 1.0;
-   if(jd->useHalf == 1){
-      /* Half precision matrix creation */
-      double *vec; cudaMalloc((void**)&vec,(A->nnz)*sizeof(double));
-      cudaMemcpy(vec,A->devValuesD,(A->nnz)*sizeof(double),cudaMemcpyDeviceToDevice);
-      double alpha; 
-
-      if(jd->normMatrix > 5e+03 || jd->normMatrix < 5e-03){
-         alpha = 2048.0/(jd->normMatrix);
-         cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
-         jd->alpha = 1;//alpha;
-      }
-      CUDA_CALL(double2halfMat(A->devValuesH, A->nnz, vec, A->nnz, A->nnz, 1));
-      cudaFree(vec);
-   }else if(jd->useHalf == -1){
-
-      /* float precision matrix creation */
-      double *vec; cudaMalloc((void**)&vec,(A->nnz)*sizeof(double));
-      cudaMemcpy(vec,A->devValuesD,(A->nnz)*sizeof(double),cudaMemcpyDeviceToDevice);
-      double alpha; 
-
-      if(jd->normMatrix > 5e+07 || jd->normMatrix < 5e-07){
-         alpha = 1e+05/(jd->normMatrix);
-         cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
-         jd->alpha = 1;//alpha;
-      }
-      CUDA_CALL(double2floatMat(A->devValuesF, A->nnz, vec, A->nnz, A->nnz, 1));
-      cudaFree(vec);
-   }
-
    return;
 }
 
@@ -206,7 +180,7 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
    cudaFree(jd->gpuMemSpaceVoid);
 
    /* destroy inner functions */
-   lock_destroy(jd);
+   //lock_destroy(jd);
    innerSolver_destroy(jd);
    restart_destroy(jd);
    expandBasis_destroy(jd);
@@ -243,26 +217,20 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
    int    dim       = A->dim;
 
    cudaFree(A->devValuesD);
+
+#if 0
    cudaFree(A->devValuesH);
    cudaFree(A->devValuesF);
+#endif
    cudaFree(A->devRows);
    cudaFree(A->devCsrRows);
    cudaFree(A->devCols);
-
-/*
-   CUDA_CALL(cudaFree(devVals));
-   CUDA_CALL(cudaFree(devValsH));
-   CUDA_CALL(cudaFree(devValsF));
-   CUDA_CALL(cudaFree(devCols));
-   CUDA_CALL(cudaFree(devRows));
-   CUDA_CALL(cudaFree(devCsrRows));
-*/
 
    struct devSolverSpace *sp = jd->sp;
 
    free(sp->normr);
 
-   cudaFree(sp->Qlocked);
+//   cudaFree(sp->Qlocked);
    cudaFree(sp->Llocked); 
 
    cudaFree(sp->AW);
@@ -303,7 +271,7 @@ void jdqmr16(struct jdqmr16Info *jd){
    
    double *L      = sp->L;                     /* Ritz values */
    
-   double *Qlocked   = sp->Qlocked; int ldQlocked = sp->ldQlocked;
+//   double *Qlocked   = sp->Qlocked; int ldQlocked = sp->ldQlocked;
    double *Llocked   = sp->Llocked;
    int    &numLocked = sp->numLocked;
 
@@ -341,8 +309,8 @@ void jdqmr16(struct jdqmr16Info *jd){
    for(int i=0;i<maxIter;i++){   
 
       /* Inner sQMR16 to be used here in the future */
-      cudaMemcpy(P,R,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
-      //innerSolver(P,ldP,R,ldR,normr,V,ldV,L,numEvals,dim,tol*normA, jd);
+      //cudaMemcpy(P,R,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
+      innerSolver(P,ldP,R,ldR,normr,V,ldV,L,numEvals,dim,tol*normA, jd);
       
       if(basisSize == maxBasis){
          /* no space left - Restart basis */
@@ -351,7 +319,7 @@ void jdqmr16(struct jdqmr16Info *jd){
       }
 
       /* Enrich basis with new vectors*/    
-      expandBasis(W, ldW, H, ldH, P, ldP, Qlocked, ldQlocked, numLocked, AW, ldAW, basisSize, dim,numEvals, jd);
+      expandBasis(W, ldW, H, ldH, P, ldP, numLocked, AW, ldAW, basisSize, dim,numEvals, jd);
       //basisSize++;
       
       /* keep previous ritz vectors for restarting purposes*/
