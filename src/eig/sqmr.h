@@ -1,29 +1,15 @@
 #ifndef SQMR_H
 #define SQMR_H
 
-void sqmr_init(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct jdqmr16Info *jd);
-void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct jdqmr16Info *jd);
-void sqmr_destroy(struct jdqmr16Info *jd);
+void blQmrD_init(double *X, int ldX, double *B, int ldB, double *Q, int ldQ,
+             int dim, int numEvals, int maxNumEvals, double tol, int maxIter,
+             struct blQmrSpace *spBlQmr, struct jdqmr16Info *jd);
 
+void blQmrD_destroy(blQmrSpace *spBlQmr);
 
-
-void sqmrF_init(float *X, int ldX, float *B, int ldB, int dim, double infNormB, struct jdqmr16Info *jd);
-void sqmrF(float *X, int ldX, float *B, int ldB, int dim, double infNormB, struct jdqmr16Info *jd);
-void sqmrF_destroy(struct jdqmr16Info *jd);
-
-
-
-void sqmrD_init(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEvals,
-               int dim, double infNormB, struct jdqmr16Info *jd);
-
-void sqmrD(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEvals,
-            int dim, double infNormB, struct jdqmr16Info *jd);
-
-void sqmrD_destroy(struct jdqmr16Info *jd);
-
-
-
-void bsqmrD(double *X, int ldX,double *B, int ldB, int dim, int numEvals, double infNormB, struct jdqmr16Info *jd);
+void blQmrD(double *X, int ldX, double *B, int ldB, double *Q, int ldQ,
+             int dim, int numEvals, int maxNumEvals, double tol, int maxIter,
+             struct blQmrSpace *spBlQmr, struct jdqmr16Info *jd);
 
 
 #endif

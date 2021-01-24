@@ -9,31 +9,11 @@
 #include <curand.h>
 #include <cusolverDn.h>
 
-struct jdqmr16Matrix {
-	/* cpu matrix space */
-   double  *values;
-	int     *cols;
-	int     *rows;
+#define USE_FP16  1
+#define USE_FP32 -1
+#define USE_FP64  0
 
-	/* gpu matrix space */
-   double  *devValuesD;
- 	float   *devValuesF;
- 	half    *devValuesH;
-	int     *devCols;
-	int     *devRows;
 
-	/* matrix general info */
-	int dim;
-	int nnz; 
-};
-
-struct gpuHandler{
-
-   curandGenerator_t   curandH;
-   cusolverDnHandle_t  cusolverH;
-   cublasHandle_t      cublasH;
-   cusparseHandle_t    cusparseH;
-};
 
 struct lockSpace{
    
@@ -55,12 +35,12 @@ struct devSolverSpace{
    double *W;       int ldW;       // space of projection (in the JD iteration)
    double *H;       int ldH;       // projected matrix
    double *R;       int ldR;       // EigenPair Residual Vectors
+   double *QH;      int ldQH;      // EigenVectors of the projected system
 
    double *AW;      int ldAW;      // keeping AW for fast update of basis
    double *P;       int ldP;       // P to expand basis
 
    double *normr;                  // residual of the eigenpairs
-   double *Qlocked; int ldQlocked; // Locked eigenvectors
    int maxLockedVals;
    double *Llocked;                // Locked eigenvalues
    int     numLocked;              // number of locked eigenpairs 
@@ -68,22 +48,47 @@ struct devSolverSpace{
 };
 
 
-struct sqmrSpace{
+struct blQmrSpace{
 
-   void *delta; 
-   void *r;     
-   void *d;     
-   void *w;     
-   size_t bufferSize;
-   void *buffer;
-   
-   void *VTd;
-   
-   
-   cusparseSpMatDescr_t descrA;
-   cusparseDnVecDescr_t descrd;
-   cusparseDnVecDescr_t descrw;
+   void *rin; int ldrin;   
+   void *w;   int ldw;
 
+   void *v1; int ldv1;
+   void *v2; int ldv2;
+   void *v3; int ldv3;
+
+   void *p0; int ldp0;
+   void *p1; int ldp1;
+   void *p2; int ldp2;
+
+   void *qq; int ldqq;
+   void *q0; int ldq0;
+   void *q1; int ldq1;
+   void *q2; int ldq2;
+
+
+
+   void *alpha; int ldalpha;
+   void *vita2; int ldvita2;
+   void *vita3; int ldvita3;
+   void *tau2_; int ldtau2_;
+   void *tau2;  int ldtau2;
+
+   void *thita2; int ldthita2; 
+   void *hta2;   int ldhta2;
+   void *zita2_; int ldzita2_; 
+   void *zita2;  int ldzita2;
+
+
+   cusparseSpMatDescr_t descA;
+   cusparseDnMatDescr_t descw;
+
+
+   double *qrtau;
+
+   size_t lworkMemSpace;
+   void   *workMemSpace;
+   int    *devInfo;
 
 };
 
@@ -95,13 +100,16 @@ struct innerSolverSpace{
    double *maxB; 
    int    *normIndexB;
 
-   void *X16;
+   void *P16;
    void *B16;
-   void *X32;
-   void *B32;
-  
-   struct sqmrSpace        *spSQmr;
+   void *V16;
 
+
+   void *P32;
+   void *B32;
+   void *V32;
+  
+   struct blQmrSpace       *spBlQmr;
 };
 
 struct restartSpace{
@@ -186,6 +194,35 @@ struct initBasisSpace{
    void    *externalBuffer;
 
    double  *AV; int ldAV;
+};
+
+
+struct gpuHandler{
+
+   curandGenerator_t   curandH;
+   cusolverDnHandle_t  cusolverH;
+   cublasHandle_t      cublasH;
+   cusparseHandle_t    cusparseH;
+};
+
+
+struct jdqmr16Matrix {
+	/* cpu matrix space */
+   double  *values;
+	int     *cols;
+	int     *rows;
+
+	/* gpu matrix space */
+   double  *devValuesD;
+ 	float   *devValuesF;
+ 	half    *devValuesH;
+	int     *devCols;
+	int     *devRows;
+   int     *devCsrRows;
+
+	/* matrix general info */
+	int dim;
+	int nnz; 
 };
 
 struct jdqmr16Info {

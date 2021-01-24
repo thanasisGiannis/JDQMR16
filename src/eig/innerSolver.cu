@@ -21,6 +21,8 @@ void innerSolver_init(double *P, int ldP, double *R, int ldR,
    innerSolverSpace *spInnerSolver = jd->spInnerSolver;
    cudaMalloc((void**)&(spInnerSolver->B),sizeof(double)*dim*numEvals);
 
+   spInnerSolver->spBlQmr = (blQmrSpace*)malloc(sizeof(blQmrSpace));
+
    switch(jd->useHalf){
       case USE_FP32 || USE_FP16:
          cudaMalloc((void**)&(spInnerSolver->B32),sizeof(float)*dim*numEvals);
@@ -29,6 +31,7 @@ void innerSolver_init(double *P, int ldP, double *R, int ldR,
          break;
 
        default:
+         blQmrD_init(P, ldP, R, ldR, V, ldV, dim, numEvals,numEvals, 0.0, 0, spInnerSolver->spBlQmr,jd);
          return;
    }
 
@@ -36,9 +39,9 @@ void innerSolver_init(double *P, int ldP, double *R, int ldR,
 
 void innerSolver_destroy(struct jdqmr16Info *jd){
 
+
    innerSolverSpace *spInnerSolver = jd->spInnerSolver;
    cudaFree(spInnerSolver->B);
-   
    switch (jd->useHalf){
        case USE_FP16:
          cudaFree(spInnerSolver->B16);
@@ -53,8 +56,10 @@ void innerSolver_destroy(struct jdqmr16Info *jd){
          break;
 
        default:
+         blQmrD_destroy(jd->spInnerSolver->spBlQmr);
          return;
    }
+   free(spInnerSolver->spBlQmr);
 
 }
 
@@ -117,7 +122,9 @@ void innerSolver(double *P, int ldP, double *R, int ldR, double *normr,
 
       default:
          // at this point a fp64 block sqmr is utilized to solve the problem 
-         cudaMemcpy(P,B,sizeof(double)*dim*numNotConverged,cudaMemcpyDeviceToDevice);
+         blQmrD(P, ldP, B, dim, V, ldV, dim, numNotConverged, numEvals, tol, 10*dim, jd->spInnerSolver->spBlQmr,jd);
+         //cudaMemcpy(P,B,sizeof(double)*dim*numNotConverged,cudaMemcpyDeviceToDevice);
+         //exit(0);
    }
 
 }
