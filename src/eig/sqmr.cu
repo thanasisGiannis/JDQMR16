@@ -33,54 +33,56 @@ void blQmrD_init(double *X, int ldX, double *B, int ldB, double *Q, int ldQ,
    double zero      =  0.0;
    double minus_one = -1.0;
 
-   cudaMalloc((void**)&(spBlQmr->rin),sizeof(double)*dim*maxNumEvals);
+   size_t fpSize = sizeof(double);
+
+   cudaMalloc((void**)&(spBlQmr->rin),fpSize*dim*maxNumEvals);
    spBlQmr->ldrin=dim;
-   cudaMalloc((void**)&(spBlQmr->w),sizeof(double)*dim*maxNumEvals);   
+   cudaMalloc((void**)&(spBlQmr->w),fpSize*dim*maxNumEvals);   
    spBlQmr->ldw  =dim;
 
-   cudaMalloc((void**)&(spBlQmr->v1),sizeof(double)*dim*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->v1),fpSize*dim*maxNumEvals); 
    spBlQmr->ldv1=dim;   
-   cudaMalloc((void**)&(spBlQmr->v2),sizeof(double)*dim*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->v2),fpSize*dim*maxNumEvals); 
    spBlQmr->ldv2=dim;      
-   cudaMalloc((void**)&(spBlQmr->v3),sizeof(double)*dim*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->v3),fpSize*dim*maxNumEvals); 
    spBlQmr->ldv3=dim;      
 
-   cudaMalloc((void**)&(spBlQmr->p0),sizeof(double)*dim*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->p0),fpSize*dim*maxNumEvals); 
    spBlQmr->ldp0=dim;     
-   cudaMalloc((void**)&(spBlQmr->p1),sizeof(double)*dim*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->p1),fpSize*dim*maxNumEvals); 
    spBlQmr->ldp1=dim;     
-   cudaMalloc((void**)&(spBlQmr->p2),sizeof(double)*dim*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->p2),fpSize*dim*maxNumEvals); 
    spBlQmr->ldp2=dim;    
 
-   cudaMalloc((void**)&(spBlQmr->qq),sizeof(double)*2*maxNumEvals*2*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->qq),fpSize*2*maxNumEvals*2*maxNumEvals); 
    spBlQmr->ldqq=2*maxNumEvals;    
-   cudaMalloc((void**)&(spBlQmr->q0),sizeof(double)*2*maxNumEvals*2*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->q0),fpSize*2*maxNumEvals*2*maxNumEvals); 
    spBlQmr->ldq0=2*maxNumEvals;       
-   cudaMalloc((void**)&(spBlQmr->q1),sizeof(double)*2*maxNumEvals*2*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->q1),fpSize*2*maxNumEvals*2*maxNumEvals); 
    spBlQmr->ldq1=2*maxNumEvals;       
-   cudaMalloc((void**)&(spBlQmr->q2),sizeof(double)*2*maxNumEvals*2*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->q2),fpSize*2*maxNumEvals*2*maxNumEvals); 
    spBlQmr->ldq2=2*maxNumEvals;       
 
 
-   cudaMalloc((void**)&(spBlQmr->alpha),sizeof(double)*maxNumEvals*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->alpha),fpSize*maxNumEvals*maxNumEvals); 
    spBlQmr->ldalpha=maxNumEvals;          
-   cudaMalloc((void**)&(spBlQmr->vita2),sizeof(double)*maxNumEvals*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->vita2),fpSize*maxNumEvals*maxNumEvals); 
    spBlQmr->ldvita2=maxNumEvals;             
-   cudaMalloc((void**)&(spBlQmr->vita3),sizeof(double)*maxNumEvals*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->vita3),fpSize*maxNumEvals*maxNumEvals); 
    spBlQmr->ldvita3=maxNumEvals;                
-   cudaMalloc((void**)&(spBlQmr->tau2_),sizeof(double)*maxNumEvals*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->tau2_),fpSize*maxNumEvals*maxNumEvals); 
    spBlQmr->ldtau2_=maxNumEvals;                
-   cudaMalloc((void**)&(spBlQmr->tau2),sizeof(double)*maxNumEvals*maxNumEvals);  
+   cudaMalloc((void**)&(spBlQmr->tau2),fpSize*maxNumEvals*maxNumEvals);  
    spBlQmr->ldtau2 =maxNumEvals;                
 
 
-   cudaMalloc((void**)&(spBlQmr->thita2),sizeof(double)*maxNumEvals*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->thita2),fpSize*maxNumEvals*maxNumEvals); 
    spBlQmr->ldthita2=maxNumEvals;                   
-   cudaMalloc((void**)&(spBlQmr->hta2),sizeof(double)*maxNumEvals*maxNumEvals);   
+   cudaMalloc((void**)&(spBlQmr->hta2),fpSize*maxNumEvals*maxNumEvals);   
    spBlQmr->ldhta2  =maxNumEvals;                 
-   cudaMalloc((void**)&(spBlQmr->zita2_),sizeof(double)*maxNumEvals*maxNumEvals); 
+   cudaMalloc((void**)&(spBlQmr->zita2_),fpSize*maxNumEvals*maxNumEvals); 
    spBlQmr->ldzita2_=maxNumEvals;                   
-   cudaMalloc((void**)&(spBlQmr->zita2),sizeof(double)*maxNumEvals*maxNumEvals);  
+   cudaMalloc((void**)&(spBlQmr->zita2),fpSize*maxNumEvals*maxNumEvals);  
    spBlQmr->ldzita2 =maxNumEvals;                  
 
 
@@ -252,6 +254,7 @@ void blQmrD(double *X, int ldX, double *B, int ldB, double *Q, int ldQ,
    cublasDgeam(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N,dim, numEvals,&one,
                w, ldw, &zero, v2, ldv2, v2, ldv2);
 
+
    //tau2_ = eye(s,s)*vita2;
    cublasDgeam(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N,numEvals, numEvals,&one,
                vita2, ldvita2, &zero, tau2_, ldtau2_,tau2_,ldtau2_);
@@ -268,7 +271,6 @@ void blQmrD(double *X, int ldX, double *B, int ldB, double *Q, int ldQ,
 
 
    for (int k=2;k<maxIter;k++){
-//   for (int k=2;k<3;k++){
       if(k>= maxIter){
           break;
       }
@@ -336,13 +338,15 @@ void blQmrD(double *X, int ldX, double *B, int ldB, double *Q, int ldQ,
       double normvita3;
       for(int i=0;i<numEvals;i++){
          double normVec;   
-         cublasDnrm2(jd->gpuH->cublasH, numEvals,&vita3[0+i*ldrin], 1, &normVec);
+         cublasDnrm2(jd->gpuH->cublasH, numEvals,&vita3[0+i*ldvita3], 1, &normVec);
          if(i==0){
             normvita3 = normVec;
          }else{
             normvita3 = max(normvita3,normVec);
          }
       }
+
+
 
       /* thita2 = q0(s+1:end,1:s)'*vita2'; */
       cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_T, numEvals, numEvals, numEvals, 
@@ -597,510 +601,5 @@ void blQmrD(double *X, int ldX, double *B, int ldB, double *Q, int ldQ,
    
 
    } // end main for loop
-   //exit(0);
-}
-//==============================
-//==============================
-//==============================
-//==============================
-//==============================
-#if 0
-   double *v1 = (double*)sp->v1;
-   double *v0 = (double*)sp->v0;
-   double *p0 = (double*)sp->p0;
-   double *p1 = (double*)sp->p1;
-   double *p2 = (double*)sp->p2;
-
-
-   double *v     = (double*)sp->v;
-   double *v2    = (double*)sp->v2;
-   double *tau2_ = (double*)sp->tau2_;
-   double *tau2  = (double*)sp->tau2;
-   double *rin   = (double*)sp->rin;
-   
-   double *w     = (double*)sp->w;
-   double *v3    = (double*)sp->v3;
-   double *vita2 = (double*)sp->vita2;
-
-   double *thita2 = (double*)sp->thita2;
-   double *hta2   = (double*)sp->hta2;
-   double *zita2_ = (double*)sp->zita2_;
-   double *vita3  = (double*)sp->vita3;
-//   double *vita3  =  &zita2_[0+2*numEvals];
-
-   double *q2     = (double*)sp->q2;
-   double *q1     = (double*)sp->q1;
-   double *q0     = (double*)sp->q0;
-
-   double *zita2 = (double*)sp->zita2;
-
-
-   cudaMemset(v0,0,sizeof(double)*dim*maxNumEvals);
-   cudaMemset(v1,0,sizeof(double)*dim*maxNumEvals); 
-
-   cudaMemset(p0,0,sizeof(double)*dim*maxNumEvals);
-   cudaMemset(p1,0,sizeof(double)*dim*maxNumEvals);
-   cudaMemset(p2,0,sizeof(double)*dim*maxNumEvals);
-/*
-   cudaMemset(c0,0,sizeof(double)*maxNumEvals*maxNumEvals);
-   cudaMemset(c1,0,sizeof(double)*maxNumEvals*maxNumEvals);
-   cudaMemset(b1,0,sizeof(double)*maxNumEvals*maxNumEvals); 
-   cudaMemset(b0,0,sizeof(double)*maxNumEvals*maxNumEvals);
-   cudaMemset(a0,0,sizeof(double)*maxNumEvals*maxNumEvals);
-   cudaMemset(a1,0,sizeof(double)*maxNumEvals*maxNumEvals);
-   cudaMemset(d0,0,sizeof(double)*maxNumEvals*maxNumEvals);
-   cudaMemset(d1,0,sizeof(double)*maxNumEvals*maxNumEvals);
-*/
-
-   cudaMemset(v,0,sizeof(double)*dim*maxNumEvals);
-   cudaMemset(v2,0,sizeof(double)*dim*maxNumEvals);
-   cudaMemset(tau2_,0,sizeof(double)*maxNumEvals*maxNumEvals);
-   cudaMemset(tau2,0,sizeof(double)*maxNumEvals*maxNumEvals);
-   cudaMemset(rin,0,sizeof(double)*dim*maxNumEvals); 
-   
-   cudaMemset(w,0,sizeof(double)*dim*maxNumEvals);
-   cudaMemset(v3,0,sizeof(double)*dim*maxNumEvals); 
-   cudaMemset(vita2,0,sizeof(double)*maxNumEvals*maxNumEvals);
-   cudaMemset(vita3,0,sizeof(double)*maxNumEvals*maxNumEvals);
-
-   cudaMemset(thita2,0,sizeof(double)*maxNumEvals*maxNumEvals);
-   cudaMemset(hta2,0,sizeof(double)*maxNumEvals*maxNumEvals);
-   cudaMemset(zita2_,0,sizeof(double)*maxNumEvals*maxNumEvals);
-   // Using same mem space for orthoganlization [zita2_;vita3] 
-
-
-   cudaMemset(q0,0,sizeof(double)*2*maxNumEvals*2*maxNumEvals);
-   cudaMemset(q1,0,sizeof(double)*2*maxNumEvals*2*maxNumEvals);
-   cudaMemset(q2,0,sizeof(double)*2*maxNumEvals*2*maxNumEvals);
-   cudaMemset(zita2,0,sizeof(double)*maxNumEvals*maxNumEvals);
-
-
-   // scalars for early stopping
-   double reig     = 1.0;
-   double normrin  = 1.0;
-   double normrinp = 1.0;
-
-
-   // a0 = I
-   // a1 = I
-   // d0 = I
-   // d1 = I
-   int BLOCK_DIM_X = 8;
-   int BLOCK_DIM_Y = 8;
-   dim3 blockDim(max(BLOCK_DIM_X,2*maxNumEvals), max(BLOCK_DIM_X,2*maxNumEvals));  
-   dim3 gridDim((2*maxNumEvals + BLOCK_DIM_X - 1) / BLOCK_DIM_X, (2*maxNumEvals + BLOCK_DIM_Y - 1) / BLOCK_DIM_Y);
-   initIdentityGPU<<<gridDim, blockDim>>>(q0, 2*maxNumEvals,maxNumEvals, maxNumEvals);
-   initIdentityGPU<<<gridDim, blockDim>>>(q1, 2*maxNumEvals,maxNumEvals, maxNumEvals);
-   initIdentityGPU<<<gridDim, blockDim>>>(q2, 2*maxNumEvals,maxNumEvals, maxNumEvals);
-
-   // qr workspace
-   int qrLwork1,qrLwork2;
-   double *qrTAU = (double*)sp->qrTAU ; 
-   int qrLwork = sp->qrLwork;
-   double *qrWorkspace = (double*)sp->qrWorkspace; 
-   int *devInfo = (int*)sp->devInfo;
-
-   double one       =  1.0;
-   double zero      =  0.0;
-   double minus_one = -1.0;
-
-
-   // X = 0;
-   cudaMemset(X,0,sizeof(double)*dim*numEvals);
-
-   // v = b-A*X
-   cudaMemcpy(v,B,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
-
-   // [v2,vita2] = qr(v,0);
-   cudaMemcpy(v2,v,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
-   cusolverDnDgeqrf(jd->gpuH->cusolverH,dim,numEvals,v2,dim,qrTAU,qrWorkspace,qrLwork,devInfo);
-   cudaDeviceSynchronize();
-   cusolverDnDorgqr(jd->gpuH->cusolverH,dim,numEvals,numEvals,v2,dim,qrTAU,qrWorkspace,qrLwork,devInfo);
-   cudaDeviceSynchronize();
-   cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N, numEvals, numEvals, dim, &one, v2, dim,v, dim, 
-               &zero,vita2, maxNumEvals);
-
-   // tau2_ = I*vita2 ; at this point a0 = I
-   // a0 = q0(1:numEvals,1:numEvals)';
-   cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N, numEvals, numEvals, numEvals,
-             &one, q0, 2*maxNumEvals, vita2, maxNumEvals,&zero,tau2_, maxNumEvals);
-
-   //rin = B;
-   cudaMemcpy(rin,B,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
-
-   double *Qv2; cudaMalloc((void**)&Qv2,sizeof(double)*maxNumEvals*maxNumEvals);
-   double *QQv2; cudaMalloc((void**)&QQv2,sizeof(double)*dim*maxNumEvals);
-   double *alpha; cudaMalloc((void**)&alpha,sizeof(double)*maxNumEvals*maxNumEvals);
-   double *tmpMM; cudaMalloc((void**)&tmpMM,sizeof(double)*2*maxNumEvals*2*maxNumEvals);
-   double *rintmp; cudaMalloc((void**)&rintmp,sizeof(double)*dim*maxNumEvals);
-   double *rintmpsmall; cudaMalloc((void**)&rintmpsmall,sizeof(double)*maxNumEvals*maxNumEvals);
-
-   int conv = 0;
-   // this will be the main loop
-   //for(int k=2;k<maxit;k++){}
-   for(int k=2;k<15;k++){   
-   //===============================   
-   //===============================   
-   //===============================   
-
-
-      // w = v2-Q*Q'*v2;
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N,maxNumEvals, numEvals, dim,
-                  &one,Q, ldQ,v2, dim,&zero,Qv2,maxNumEvals);
-
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N,dim, numEvals, maxNumEvals,
-                  &one, Q, ldQ, Qv2, maxNumEvals, &zero,QQv2,dim);
-
-
-      cublasDgeam(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N,dim, numEvals,&one,v2, dim,&minus_one, QQv2, dim,w,dim);
-
-
-      /* w = A*w */
-      cusparseSpMatDescr_t descA;
-      cusparseDnMatDescr_t descW;
-      size_t bufferSizeSpMM;
-      void *bufferSpMM; 
-    
-      cusparseSpMM(jd->gpuH->cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
-                &one,descA,descW,&zero,descW,CUDA_R_64F,CUSPARSE_SPMM_CSR_ALG1,bufferSpMM);
-
-
-
-
-      // w = w - QQ'w
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N,maxNumEvals, numEvals, dim,
-                  &one,Q, ldQ, w, dim,&zero,Qv2,maxNumEvals);
-
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N,dim, numEvals, maxNumEvals,
-                  &one, Q, ldQ, Qv2, maxNumEvals, &zero,QQv2,dim);
-
-
-      cublasDgeam(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N,dim, numEvals,&one,w, dim,&minus_one, QQv2, dim,w,dim);
-
-
-
-
-      // alpha = w'v2
-
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N,numEvals, numEvals, dim,
-                  &one, w, dim, v2, dim, &zero,alpha,maxNumEvals);
-      
-
-      // w = w - v2*alpha - v1*vita2';
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N,dim, numEvals, numEvals,
-                  &minus_one, v2, dim, alpha, maxNumEvals, &one, w,dim);
-
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_T,dim, numEvals, numEvals,
-                  &minus_one, v1, dim, vita2, maxNumEvals, &one, w,dim);
-
-
-
-
-      // [v3,vita3] = qr(w,0);
-      cudaMemcpy(v3,w,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
-      cusolverDnDgeqrf(jd->gpuH->cusolverH,dim,numEvals,v3,dim,qrTAU,qrWorkspace,qrLwork,devInfo);
-      cudaDeviceSynchronize();
-      cusolverDnDorgqr(jd->gpuH->cusolverH,dim,numEvals,numEvals,v3,dim,qrTAU,qrWorkspace,qrLwork,devInfo);
-      cudaDeviceSynchronize();
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N, numEvals, numEvals, dim, &one, v3, dim,w, dim, 
-                  &zero,vita3, maxNumEvals);
-
-
-
-
-
-      // if(norm(vita3) < tol) return;
-      double maxNorm=-1e+500;
-      for(int i=0;i<numEvals;i++){
-         double normV;   
-         cublasDnrm2(jd->gpuH->cublasH, numEvals,&vita3[0+i*maxNumEvals], 1, &normV);
-         maxNorm = max(maxNorm,normV);
-      }
-      //if(maxNorm < tol){return;}
-
-      // b0 = q(numEvals+1:end,1:numEvals)';
-      //thita2 = q0(s+1:end,1:s)'*vita2';
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_T, numEvals, numEvals, numEvals, 
-                  &one, &q0[numEvals + 0 * 2*maxNumEvals], 2*maxNumEvals, vita2, maxNumEvals,&zero,thita2, maxNumEvals);
-
-      //hta2 = q1(1:s,1:s)'*q0(s+1:end,s+1:end)'*vita2' + q1(s+1:end,1:s)'*alpha;
-             
-      // hta2 = q0(s+1:end,s+1:end)'*vita2'
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_T, numEvals, numEvals, numEvals, 
-                  &one, &q0[numEvals+numEvals*2*maxNumEvals], 2*maxNumEvals, vita2, maxNumEvals,&zero,hta2, maxNumEvals);
-
-      // hta2  = q1(1:s,1:s)'*hta2;
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N, numEvals, numEvals, numEvals, 
-                  &one, q1, 2*maxNumEvals, hta2, maxNumEvals, &zero, hta2, maxNumEvals);
-
-      // hta2 = hta2 + q(s+1:end,1:s)'*alpha
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N, numEvals, numEvals, numEvals, 
-                  &one, &q1[numEvals + 0*2*maxNumEvals ], 2*maxNumEvals, alpha, maxNumEvals, &one, hta2, maxNumEvals);
-
-
-
-
-      // zita2_ = q1(1:s,s+1:end)'*q0(s+1:end,s+1:end)'*vita2' + q1(s+1:end,s+1:end)'*alpha;
-
-      // zita2_ = q0(s+1:end,s+1:end)'*vita2';
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_T, numEvals, numEvals, numEvals, 
-                  &one, &q0[numEvals+numEvals*2*maxNumEvals], 2*maxNumEvals, vita2, maxNumEvals,&zero,zita2_, maxNumEvals);
-
-      //zita2_ = q1(1:s,s+1:end)'*zita2_
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N, numEvals, numEvals, numEvals, 
-                  &one, &q1[0+numEvals*2*maxNumEvals], 2*maxNumEvals, zita2_, maxNumEvals, &zero, zita2_ , maxNumEvals);
-
-
-      // zita2_ = zita2_ + q1(s+1:end,s+1:end)'*alpha
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N, numEvals, numEvals, numEvals, 
-                  &one, &q1[numEvals + numEvals*2*maxNumEvals], 2*maxNumEvals, alpha, maxNumEvals, &one, zita2_, maxNumEvals);
-
-
-
-
-      // [q,zita2] = qr([zita2_;vita3]); q = q';
-      cublasDgeam(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N,numEvals, numEvals,
-                             &one,zita2_,maxNumEvals,&zero,tmpMM, 2*maxNumEvals,tmpMM, 2*maxNumEvals);
-      cublasDgeam(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N, numEvals, numEvals, 
-                     &one, vita3, maxNumEvals,&zero, &tmpMM[numEvals], 2*maxNumEvals,
-                     &tmpMM[numEvals], 2*maxNumEvals);
-      curandGenerateNormalDouble(jd->gpuH->curandH, tmpMM, numEvals*2*numEvals,0,1);
-
-      cublasDgeam(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N,2*numEvals, 2*numEvals,
-                             &one,tmpMM,2*maxNumEvals,&zero,q2, 2*maxNumEvals,q2, 2*maxNumEvals);
-
-      cusolverDnDgeqrf(jd->gpuH->cusolverH,2*numEvals,2*numEvals,q2,2*maxNumEvals,qrTAU,qrWorkspace,qrLwork,devInfo);
-      cudaDeviceSynchronize();
-      cusolverDnDorgqr(jd->gpuH->cusolverH,2*numEvals,2*numEvals,2*numEvals,q2,2*maxNumEvals,qrTAU,qrWorkspace,qrLwork,devInfo);
-      cudaDeviceSynchronize();
-
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N, 2*numEvals, 2*numEvals, 2*numEvals,
-                   &one, q2, 2*maxNumEvals,tmpMM, 2*maxNumEvals, &zero,tmpMM, 2*maxNumEvals);
-
-
-      cublasDgeam(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N,numEvals, numEvals,
-                   &zero,zita2,maxNumEvals,&one,tmpMM, 2*maxNumEvals,zita2, maxNumEvals);
-
-      /* at this point q = q' should be used */
-      /* but instead we keep q' to use with tranposition at every operator */
-
-      /* p2 =  v2-p1*hta2-p0*thita2; */
-      // p2 = p1*hta2
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N, dim, numEvals, numEvals, 
-                  &one, p1, dim, hta2, maxNumEvals, &zero, p2, dim);
-
-      // p2 = p2 + p0*thita2;
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N, dim, numEvals, numEvals, 
-                  &one, p0, dim, thita2, maxNumEvals, &one, p2, dim);
-      
-      // p2 = v2 - p2;   
-      cublasDgeam(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N,dim, numEvals,
-                   &one,v2,dim,&minus_one,p2, dim,p2, dim);
-
-      /* p2 = p2/zita2; */
-      cublasDtrsm(jd->gpuH->cublasH,CUBLAS_SIDE_RIGHT, CUBLAS_FILL_MODE_UPPER,CUBLAS_OP_N, CUBLAS_DIAG_NON_UNIT,
-                              dim, numEvals,&one,zita2, maxNumEvals,p2, dim);
-      /* tau2 = q(1:numEvals,1:numEvals)'*tau2_; */
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N, numEvals, numEvals, numEvals, 
-                  &one, q2, 2*maxNumEvals, tau2_, maxNumEvals, &zero, tau2, maxNumEvals);
-
-      /* x = x + p2*tau2; */
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N, dim, numEvals, numEvals, 
-                  &one, p2, dim, tau2, maxNumEvals, &one, X, dim);
-      
-      /* rin22 = rin -(v3*vita3+v2*alpha+v1*vita2')*(v2'*p2)*tau2; */
-     // rintmp =  v3*vita3
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N, dim, numEvals, numEvals, 
-                  &one, v3, dim, vita3, maxNumEvals, &zero, rintmp, dim);
-      
-      // rintmp = rintmp + v2*alpha
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N, dim, numEvals, numEvals, 
-                  &one, v2, dim, alpha, maxNumEvals, &one, rintmp, dim);
-
-      // rintmp = rintmp + v1*vita2'
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_T, dim, numEvals, numEvals, 
-                  &one, v1, dim, vita2, maxNumEvals, &one, rintmp, dim);
-
-
-      // rintmpsmall = v2'*p2;
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N, numEvals, numEvals, dim, 
-                  &one, v2, dim, p2, dim, &zero, rintmpsmall, maxNumEvals);
-
-      // rintmpsmall = rintmpsmall*tau2;
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N, numEvals, numEvals, numEvals, 
-                  &one, rintmpsmall, maxNumEvals, tau2, maxNumEvals, &zero, rintmpsmall, maxNumEvals);
-      // rin = rin - rintmp*rintmpsmall
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_N, CUBLAS_OP_N, dim, numEvals, numEvals, 
-                  &minus_one, rintmp, dim, rintmpsmall, maxNumEvals, &one, rin, dim);
-      /* rho = norm(rin); */
-      double rho;
-      for(int i=0;i<numEvals;i++){
-         double normVec;   
-         cublasDnrm2(jd->gpuH->cublasH, numEvals,&rin[0+i*dim], 1, &normVec);
-         if(i==0){
-            rho = normVec;
-         }else{
-            rho = max(rho,normVec);
-         }
-      }
-
-      //if( rho < tol) return;   
-printf("%% %e\n",rho);
-
-
-      // ttau2_ = q(1:numEvals,numEvals+1:end)'*tau2_; PROSOXI: THELOYME TO TRANSPOSE STO q
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N, numEvals, numEvals, numEvals, 
-                  &one, &q2[0 + numEvals*2*maxNumEvals], 2*maxNumEvals, tau2_, maxNumEvals, &zero, tau2_, maxNumEvals);
-
-
-
-      
-      double normtau2_;
-      for(int i=0;i<numEvals;i++){
-         double normVec;   
-         cublasDnrm2(jd->gpuH->cublasH, numEvals,&tau2_[0+i*maxNumEvals], 1, &normVec);
-         if(i==0){
-            normtau2_ = normVec;
-         }else{
-            normtau2_ = max(normtau2_,normVec);
-         }
-      }
-
-      //if( normtau2_ < tol) return;   
-
-      double normrinp2 = normrinp;
-      normrinp = normrin;
-      normrin = rho;
-            
-
-      /* brin = max(vecnorm(b'*rin)); */
-      // rintmpsmall = B'*rin;
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N, numEvals, numEvals, dim, 
-                  &one, B, dim, rin, dim, &zero, rintmpsmall, maxNumEvals);
-
-      double brin;
-      for(int i=0;i<numEvals;i++){
-         double normVec;   
-         cublasDnrm2(jd->gpuH->cublasH, numEvals,&rintmpsmall[0+i*maxNumEvals], 1, &normVec);
-         if(i==0){
-            brin = normVec;
-         }else{
-            brin = max(brin,normVec);
-         }
-      }
-      
-
-
-      /* normx = max(vecnorm(x)); */
-      double normx;
-      for(int i=0;i<numEvals;i++){
-         double normVec;   
-         cublasDnrm2(jd->gpuH->cublasH, numEvals,&X[0+i*dim], 1, &normVec);
-         if(i==0){
-            normx = normVec;
-         }else{
-            normx = max(normx,normVec);
-         }
-      }
-
-      /* bx = max(vecnorm(B'*X)); */
-      // rintmpsmall = B'*X;
-      cublasDgemm(jd->gpuH->cublasH,CUBLAS_OP_T, CUBLAS_OP_N, numEvals, numEvals, dim, 
-                  &one, B, dim, X, dim, &zero, rintmpsmall, maxNumEvals);
-
-      double bx;
-      for(int i=0;i<numEvals;i++){
-         double normVec;   
-         cublasDnrm2(jd->gpuH->cublasH, numEvals,&rintmpsmall[0+i*maxNumEvals], 1, &normVec);
-         if(i==0){
-            bx = normVec;
-         }else{
-            bx = max(bx,normVec);
-         }
-      }
-
-
-
-      double g = sqrt(abs(normrin*normrin-brin*brin));
-      double sin = sqrt(abs(normx*normx-bx*bx))/abs(bx);
-      double vitain = abs(1-brin);
-         
-      double reigprev = reig;
-      if(vitain < g*sin){
-          reig = sqrt(abs(g*g+vitain*vitain))/(abs(bx)*sqrt(abs(1+normx*normx)));
-      }else{
-          reig = (g+vitain*normx)/(abs(bx)*(1+normx*normx));
-      }
-
-      if((normrin < 10^(-1/2) && reig < tol) && conv==0){
-         //maxit = k+15 ;
-         conv = 1;
-         
-      }
-      
-      if ((normrin < 10^(-1/2) && vitain*sin/(1+sin*sin) > tol/2) && conv==0){
-         //maxit = k+15 ;
-         conv = 1;
-      }
-
-            
-      if (( normrin < vitain*sin/sqrt(1+sin*sin) ) && conv==0){
-      //   maxit = k+15 ;
-         conv =1;
-      }
-
-
-      if (((normrin/normrinp)*(normrin/normrinp) > 1/(2-(normrinp/normrinp2)*(normrinp/normrinp2))) && conv==0){
-   //      maxit = k+15 ;
-         conv = 1;
-      }  
-
-   //   double reig_reigprev = (double)reig/reigprev;
-      if ((normrin/normrinp > pow(reig/reigprev,0.9)) && conv ==0){
-   //      maxit = k+15 ;
-         conv = 1;
-      }
-
-
-      double *tmp;
-      tmp = v1;
-      v1  = v2;
-      v2  = v3;
-      v3  = tmp;
-
-      tmp   = vita2;
-      vita2 = vita3;
-      vita3 = tmp;
-
-      tmp = p0;
-      p0  = p1;
-      p1  = p2;
-      p2  = tmp;
-
-      tmp = q0;
-      q0  = q1;
-      q1  = q2;
-      q2  = tmp;
-   }
-   //===============================   
-   //===============================   
-   //===============================   
-
-/*
-   printMatrixDouble(c1,numEvals,numEvals,"c1");
-   printMatrixDouble(d0,numEvals,numEvals,"d0");
-   printMatrixDouble(vita2,numEvals,numEvals,"vita2");
-
-   printMatrixDouble(d1,numEvals,numEvals,"d1");
-   printMatrixDouble(alpha,numEvals,numEvals,"alpha");
-*/
-   exit(0);
-   cudaFree(rintmpsmall);
-   cudaFree(rintmp);
-   cudaFree(tmpMM);
-   cudaFree(alpha);
-   cudaFree(QQv2);
-   cudaFree(Qv2);
-}
-#endif
+}// end of function
 
