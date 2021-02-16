@@ -190,6 +190,7 @@ void restart(double *W, int ldW, double *H, int ldH,
    cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,descrA,descrW,&zero,descrAW,CUDA_R_64F,
              CUSPARSE_SPMM_ALG_DEFAULT,buffer);
+   jd->numMatVecsfp64++;
 
    /* W = W'*AW */
    CUBLAS_CALL(cublasGemmEx(cublasH,CUBLAS_OP_T,CUBLAS_OP_N,3*numEvals,3*numEvals,dim,&one,

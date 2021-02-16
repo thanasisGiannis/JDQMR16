@@ -188,6 +188,7 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, int
    cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,spExpandBasis->descrA,spExpandBasis->descrP,&zero,spExpandBasis->descrAP,CUDA_R_64F,
              CUSPARSE_SPMM_ALG_DEFAULT,buffer);
+   jd->numMatVecsfp64++;
 
    /* H = [H W'*AP; P'*AW P'*AP*/
    // P'*AP   

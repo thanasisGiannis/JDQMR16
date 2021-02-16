@@ -38,8 +38,8 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    jd->outerIterations = 0;
    jd->innerIterations = 0;
 
-   if(jd->useHalf !=-1 && jd->useHalf != 0 && jd->useHalf!=1 && jd->useHalf!=-2 && jd->useHalf!=-3){
-      jd->useHalf = 1;
+   if(jd->useHalf != USE_FP16 && jd->useHalf != USE_FP32 && jd->useHalf != USE_FP64 ){
+      jd->useHalf = USE_FP64;
    }
    /* if matrix is small */
    if(numEvals*maxBasis >= dim){
@@ -49,7 +49,8 @@ void init_jdqmr16(struct jdqmr16Info *jd){
  
    /* initialize data to device */
    CUDA_CALL(cudaMalloc((void**)&(A->devValuesD),sizeof(double)*nnz));
-#if 0
+
+#if 1
    CUDA_CALL(cudaMalloc((void**)&(A->devValuesF),sizeof(double)*nnz));
    CUDA_CALL(cudaMalloc((void**)&(A->devValuesH),sizeof(half)*nnz));
 #endif
@@ -81,15 +82,19 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    // cublas
    cublasHandle_t *cublasH =  &(gpuH->cublasH);
    cublasCreate(cublasH);   
-   cublasSetMathMode(*cublasH, CUBLAS_TENSOR_OP_MATH);
+//   cublasSetMathMode(*cublasH, CUBLAS_TENSOR_OP_MATH);
    // cusparse
    cusparseHandle_t *cusparseH = &(gpuH->cusparseH);
    cusparseCreate(cusparseH);
 
    // create csr 
    cusparseXcoo2csr(*cusparseH,A->devRows,nnz,dim,A->devCsrRows,CUSPARSE_INDEX_BASE_ZERO);
-
-
+/*
+   printMatrixDouble(A->devValuesD,A->nnz,1,"vals");
+   printMatrixInt(A->devCols,A->nnz,1,"cols");
+   printMatrixInt(A->devRows,A->nnz,1,"rows");
+exit(0);
+*/
    /* initialize space for solver */
    struct devSolverSpace* sp = jd->sp;
    CUDA_CALL(cudaMalloc((void**)&sp->W,sizeof(double)*dim*maxBasis*numEvals));               sp->ldW     = dim;
@@ -101,7 +106,6 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    CUDA_CALL(cudaMalloc((void**)&sp->QH,sizeof(double)*maxBasis*numEvals*maxBasis*numEvals));sp->ldQH    = maxBasis*numEvals;
 
 
-//   CUDA_CALL(cudaMalloc((void**)&sp->Qlocked,sizeof(double)*numEvals*dim));                  sp->ldQlocked= dim;
    CUDA_CALL(cudaMalloc((void**)&sp->Llocked,sizeof(double)*numEvals)); 
    sp->numLocked = 0;
 
@@ -218,7 +222,7 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
 
    cudaFree(A->devValuesD);
 
-#if 0
+#if 1
    cudaFree(A->devValuesH);
    cudaFree(A->devValuesF);
 #endif
@@ -336,6 +340,9 @@ void jdqmr16(struct jdqmr16Info *jd){
       numLocked = 0;
       for(int j=0;j<numEvals;j++){
          cublasDnrm2(jd->gpuH->cublasH,dim,&R[0+j*ldR], 1, &normr[j]);
+         if(normr[j] == 0.0/0.0){
+            return;
+         }
          if(normr[j] < tol*normA) numLocked++;
       }
 

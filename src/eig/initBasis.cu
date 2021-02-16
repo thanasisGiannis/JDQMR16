@@ -174,7 +174,7 @@ void initBasis(double *W, int ldW, double *H, int ldH, double *V, int ldV, doubl
    cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,&one,
              spInitBasis->descrA,spInitBasis->descrV,&zero,spInitBasis->descrAV,
              CUDA_R_64F,CUSPARSE_SPMM_ALG_DEFAULT,buffer);
-
+   jd->numMatVecsfp64++;
 
    cudaMemcpy(AW,AV,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
 
