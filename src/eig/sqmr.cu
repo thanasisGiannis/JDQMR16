@@ -48,7 +48,7 @@ void blQmrH_init(float *X, int ldX, float *B, int ldB, float *Q, int ldQ,
 
    cublasSetMathMode(jd->gpuH->cublasH,CUBLAS_TF32_TENSOR_OP_MATH);
 
-   size_t fpSize = sizeof(float);
+   size_t fpSize = sizeof(double);
    cudaMalloc((void**)&(spBlQmr->rin),fpSize*dim*maxNumEvals);
    spBlQmr->ldrin=dim;
    cudaMalloc((void**)&(spBlQmr->w),fpSize*dim*maxNumEvals);   
@@ -104,7 +104,6 @@ void blQmrH_init(float *X, int ldX, float *B, int ldB, float *Q, int ldQ,
    cudaMalloc((void**)&(spBlQmr->zita2),fpSize*maxNumEvals*maxNumEvals);  
    spBlQmr->ldzita2 =maxNumEvals;                  
 
-
    /* Create fp32 Matrix */
    /* find max-norm of matrix */
    jd->normMatrix = 0;
@@ -131,14 +130,16 @@ void blQmrH_init(float *X, int ldX, float *B, int ldB, float *Q, int ldQ,
    /* finding memory requirements */
    /* mem req for matvec*/
    size_t bufferSizeSpMM=0;
-   cusparseCreateCsr(&(spBlQmr->descA),jd->matrix->dim,jd->matrix->dim,jd->matrix->nnz,
+   cusparseCreateCsr(&(spBlQmr->descA16),jd->matrix->dim,jd->matrix->dim,jd->matrix->nnz,
                jd->matrix->devCsrRows,jd->matrix->devCols,jd->matrix->devValuesH,
                CUSPARSE_INDEX_32I,CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_16F);
 
-   cusparseCreateDnMat(&(spBlQmr->descw),dim,maxNumEvals,dim,spBlQmr->w16,CUDA_R_16F,CUSPARSE_ORDER_COL);
+
+   cusparseCreateDnMat(&(spBlQmr->descw16),dim,maxNumEvals,dim,spBlQmr->w16,CUDA_R_16F,CUSPARSE_ORDER_COL);
 
    cusparseSpMM_bufferSize(jd->gpuH->cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
-                     &one,spBlQmr->descA,spBlQmr->descw,&zero,spBlQmr->descw,CUDA_R_16F,CUSPARSE_SPMM_CSR_ALG1,&bufferSizeSpMM);
+                     &one,spBlQmr->descA16,spBlQmr->descw16,&zero,
+                     spBlQmr->descw16,CUDA_R_16F,CUSPARSE_SPMM_CSR_ALG1,&bufferSizeSpMM);
 
    /* mem req for  qr(v2,0) */
    int Lwork = 0;
@@ -256,8 +257,15 @@ void blQmrH(float *X, int ldX,float *B, int ldB, float *Q, int ldQ,
    float *zita2  = (float*)sp->zita2;  int ldzita2  = sp->ldzita2;
 
 
-   cusparseSpMatDescr_t descA  = sp->descA;
-   cusparseDnMatDescr_t descw  = sp->descw;
+   cusparseCreateDnMat(&(spBlQmr->descw16),dim,numEvals,dim,spBlQmr->w16,CUDA_R_16F,CUSPARSE_ORDER_COL);
+
+   size_t tmpbufferSizeSpMM;
+   cusparseSpMM_bufferSize(jd->gpuH->cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
+                     &one,spBlQmr->descA16,spBlQmr->descw16,&zero,
+                     spBlQmr->descw16,CUDA_R_16F,CUSPARSE_SPMM_CSR_ALG1,&tmpbufferSizeSpMM);
+
+   cusparseSpMatDescr_t descA  = sp->descA16;
+   cusparseDnMatDescr_t descw  = sp->descw16;
 
 
    float *qrtau  = (float*)sp->qrtau;
@@ -813,14 +821,16 @@ void blQmrF_init(float *X, int ldX, float *B, int ldB, float *Q, int ldQ,
    /* finding memory requirements */
    /* mem req for matvec*/
    size_t bufferSizeSpMM=0;
-   cusparseCreateCsr(&(spBlQmr->descA),jd->matrix->dim,jd->matrix->dim,jd->matrix->nnz,
+   cusparseCreateCsr(&(spBlQmr->descA16),jd->matrix->dim,jd->matrix->dim,jd->matrix->nnz,
                jd->matrix->devCsrRows,jd->matrix->devCols,jd->matrix->devValuesF,
                CUSPARSE_INDEX_32I,CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_32F);
 
-   cusparseCreateDnMat(&(spBlQmr->descw),dim,maxNumEvals,dim,spBlQmr->w,CUDA_R_32F,CUSPARSE_ORDER_COL);
+
+   cusparseCreateDnMat(&(spBlQmr->descw16),dim,maxNumEvals,dim,spBlQmr->w,CUDA_R_32F,CUSPARSE_ORDER_COL);
 
    cusparseSpMM_bufferSize(jd->gpuH->cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
-                     &one,spBlQmr->descA,spBlQmr->descw,&zero,spBlQmr->descw,CUDA_R_32F,CUSPARSE_SPMM_CSR_ALG1,&bufferSizeSpMM);
+                     &one,spBlQmr->descA16,spBlQmr->descw16,&zero,
+                     spBlQmr->descw16,CUDA_R_32F,CUSPARSE_SPMM_CSR_ALG1,&bufferSizeSpMM);
 
    /* mem req for  qr(v2,0) */
    int Lwork = 0;
@@ -937,8 +947,16 @@ void blQmrF(float *X, int ldX, float *B, int ldB, float *Q, int ldQ,
    float *zita2  = (float*)sp->zita2;  int ldzita2  = sp->ldzita2;
 
 
-   cusparseSpMatDescr_t descA  = sp->descA;
-   cusparseDnMatDescr_t descw  = sp->descw;
+
+   cusparseCreateDnMat(&(spBlQmr->descw16),dim,numEvals,dim,spBlQmr->w,CUDA_R_32F,CUSPARSE_ORDER_COL);
+   size_t tmpbufferSizeSpMM;
+   cusparseSpMM_bufferSize(jd->gpuH->cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
+                     &one,spBlQmr->descA16,spBlQmr->descw16,&zero,
+                     spBlQmr->descw16,CUDA_R_32F,CUSPARSE_SPMM_CSR_ALG1,&tmpbufferSizeSpMM);
+
+
+   cusparseSpMatDescr_t descA  = sp->descA16;
+   cusparseDnMatDescr_t descw  = sp->descw16;
    
 
    float *qrtau  = (float*)sp->qrtau;
@@ -1600,6 +1618,12 @@ void blQmrD(double *X, int ldX, double *B, int ldB, double *Q, int ldQ,
    double *zita2_ = (double*)sp->zita2_; int ldzita2_ = sp->ldzita2_; 
    double *zita2  = (double*)sp->zita2;  int ldzita2  = sp->ldzita2;
 
+
+   cusparseCreateDnMat(&(spBlQmr->descw),dim,numEvals,dim,spBlQmr->w,CUDA_R_64F,CUSPARSE_ORDER_COL);
+   size_t tmpbufferSizeSpMM;
+   cusparseSpMM_bufferSize(jd->gpuH->cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
+                     &one,spBlQmr->descA,spBlQmr->descw,&zero,spBlQmr->descw,CUDA_R_64F,
+                     CUSPARSE_SPMM_CSR_ALG1,&tmpbufferSizeSpMM);
 
    cusparseSpMatDescr_t descA  = sp->descA;
    cusparseDnMatDescr_t descw  = sp->descw;
