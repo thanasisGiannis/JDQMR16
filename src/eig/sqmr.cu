@@ -41,70 +41,17 @@ void blQmrH_init(float *X, int ldX, float *B, int ldB, float *Q, int ldQ,
              int dim, int numEvals, int maxNumEvals, float tol, int maxIter,
              struct blQmrSpace *spBlQmr, struct jdqmr16Info *jd){
 
-
    float one       =  1.0;
    float zero      =  0.0;
    float minus_one = -1.0;
 
    cublasSetMathMode(jd->gpuH->cublasH,CUBLAS_TF32_TENSOR_OP_MATH);
 
-   size_t fpSize = sizeof(double);
-   cudaMalloc((void**)&(spBlQmr->rin),fpSize*dim*maxNumEvals);
-   spBlQmr->ldrin=dim;
-   cudaMalloc((void**)&(spBlQmr->w),fpSize*dim*maxNumEvals);   
-   spBlQmr->ldw  =dim;
-   cudaMalloc((void**)&(spBlQmr->ww),fpSize*dim*maxNumEvals);   
-   spBlQmr->ldww  =dim;
-
    cudaMalloc((void**)&(spBlQmr->w16),sizeof(half)*dim*maxNumEvals);   
    spBlQmr->ldw16  =dim;
 
-   cudaMalloc((void**)&(spBlQmr->v1),fpSize*dim*maxNumEvals); 
-   spBlQmr->ldv1=dim;   
-   cudaMalloc((void**)&(spBlQmr->v2),fpSize*dim*maxNumEvals); 
-   spBlQmr->ldv2=dim;      
-   cudaMalloc((void**)&(spBlQmr->v3),fpSize*dim*maxNumEvals); 
-   spBlQmr->ldv3=dim;      
 
-   cudaMalloc((void**)&(spBlQmr->p0),fpSize*dim*maxNumEvals); 
-   spBlQmr->ldp0=dim;     
-   cudaMalloc((void**)&(spBlQmr->p1),fpSize*dim*maxNumEvals); 
-   spBlQmr->ldp1=dim;     
-   cudaMalloc((void**)&(spBlQmr->p2),fpSize*dim*maxNumEvals); 
-   spBlQmr->ldp2=dim;    
-
-   cudaMalloc((void**)&(spBlQmr->qq),fpSize*2*maxNumEvals*2*maxNumEvals); 
-   spBlQmr->ldqq=2*maxNumEvals;    
-   cudaMalloc((void**)&(spBlQmr->q0),fpSize*2*maxNumEvals*2*maxNumEvals); 
-   spBlQmr->ldq0=2*maxNumEvals;       
-   cudaMalloc((void**)&(spBlQmr->q1),fpSize*2*maxNumEvals*2*maxNumEvals); 
-   spBlQmr->ldq1=2*maxNumEvals;       
-   cudaMalloc((void**)&(spBlQmr->q2),fpSize*2*maxNumEvals*2*maxNumEvals); 
-   spBlQmr->ldq2=2*maxNumEvals;       
-
-
-   cudaMalloc((void**)&(spBlQmr->alpha),fpSize*maxNumEvals*maxNumEvals); 
-   spBlQmr->ldalpha=maxNumEvals;          
-   cudaMalloc((void**)&(spBlQmr->vita2),fpSize*maxNumEvals*maxNumEvals); 
-   spBlQmr->ldvita2=maxNumEvals;             
-   cudaMalloc((void**)&(spBlQmr->vita3),fpSize*maxNumEvals*maxNumEvals); 
-   spBlQmr->ldvita3=maxNumEvals;                
-   cudaMalloc((void**)&(spBlQmr->tau2_),fpSize*maxNumEvals*maxNumEvals); 
-   spBlQmr->ldtau2_=maxNumEvals;                
-   cudaMalloc((void**)&(spBlQmr->tau2),fpSize*maxNumEvals*maxNumEvals);  
-   spBlQmr->ldtau2 =maxNumEvals;                
-
-
-   cudaMalloc((void**)&(spBlQmr->thita2),fpSize*maxNumEvals*maxNumEvals); 
-   spBlQmr->ldthita2=maxNumEvals;                   
-   cudaMalloc((void**)&(spBlQmr->hta2),fpSize*maxNumEvals*maxNumEvals);   
-   spBlQmr->ldhta2  =maxNumEvals;                 
-   cudaMalloc((void**)&(spBlQmr->zita2_),fpSize*maxNumEvals*maxNumEvals); 
-   spBlQmr->ldzita2_=maxNumEvals;                   
-   cudaMalloc((void**)&(spBlQmr->zita2),fpSize*maxNumEvals*maxNumEvals);  
-   spBlQmr->ldzita2 =maxNumEvals;                  
-
-   /* Create fp32 Matrix */
+   /* Create fp16 Matrix */
    /* find max-norm of matrix */
    jd->normMatrix = 0;
    double *val = jd->matrix->values;
@@ -135,77 +82,15 @@ void blQmrH_init(float *X, int ldX, float *B, int ldB, float *Q, int ldQ,
                CUSPARSE_INDEX_32I,CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_16F);
 
 
-   cusparseCreateDnMat(&(spBlQmr->descw16),dim,maxNumEvals,dim,spBlQmr->w16,CUDA_R_16F,CUSPARSE_ORDER_COL);
-
-   cusparseSpMM_bufferSize(jd->gpuH->cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
-                     &one,spBlQmr->descA16,spBlQmr->descw16,&zero,
-                     spBlQmr->descw16,CUDA_R_16F,CUSPARSE_SPMM_CSR_ALG1,&bufferSizeSpMM);
-
-   /* mem req for  qr(v2,0) */
-   int Lwork = 0;
-   int maxLwork = 0;
-   // tau will be used also at qr(qq)
-   cudaMalloc((void**)&spBlQmr->qrtau,fpSize*2*maxNumEvals);
-   cusolverDnSgeqrf_bufferSize(jd->gpuH->cusolverH,jd->matrix->dim,maxNumEvals,(float *)spBlQmr->v2,spBlQmr->ldv2,&Lwork);
-   maxLwork = max(Lwork,maxLwork);
-   cusolverDnSorgqr_bufferSize(jd->gpuH->cusolverH,jd->matrix->dim,maxNumEvals,maxNumEvals,
-                        (float *)spBlQmr->v2,spBlQmr->ldv2,(float *)spBlQmr->qrtau,&Lwork);
-   maxLwork = max(Lwork,maxLwork);
-
-   /* mem req for  qr(qq) */
-   Lwork = 0;
-   // using the same tau
-   cusolverDnSgeqrf_bufferSize(jd->gpuH->cusolverH,2*maxNumEvals,2*maxNumEvals,(float *)spBlQmr->qq,spBlQmr->ldqq,&Lwork);
-   maxLwork = max(Lwork,maxLwork);
-   cusolverDnSorgqr_bufferSize(jd->gpuH->cusolverH,2*maxNumEvals,2*maxNumEvals,2*maxNumEvals,
-                        (float *)spBlQmr->qq,spBlQmr->ldqq,(float *)spBlQmr->qrtau,&Lwork);
-   maxLwork = max(Lwork,maxLwork);
-
-   
-   spBlQmr->lworkMemSpace = max(fpSize*maxLwork,bufferSizeSpMM);
-   cudaMalloc((void**)&(spBlQmr->workMemSpace),spBlQmr->lworkMemSpace);
-   cudaMalloc((void**)&(spBlQmr->devInfo),sizeof(int));
+   blQmrD_init(0, 0, 0, 0, 0, 0, dim, numEvals,maxNumEvals, tol, maxIter, spBlQmr,jd);
 
    return;
 }
 
 void blQmrH_destroy(blQmrSpace *spBlQmr){
 
-   cudaFree(spBlQmr->rin);
-   cudaFree(spBlQmr->w);
-   cudaFree(spBlQmr->ww);
    cudaFree(spBlQmr->w16);
-
-   cudaFree(spBlQmr->v1);
-   cudaFree(spBlQmr->v2);
-   cudaFree(spBlQmr->v3);
-
-   cudaFree(spBlQmr->p0);
-   cudaFree(spBlQmr->p1);
-   cudaFree(spBlQmr->p2);
-
-   cudaFree(spBlQmr->qq);
-   cudaFree(spBlQmr->q0);
-   cudaFree(spBlQmr->q1);
-   cudaFree(spBlQmr->q2);
-
-
-   cudaFree(spBlQmr->alpha);
-   cudaFree(spBlQmr->vita2);
-   cudaFree(spBlQmr->vita3);
-   cudaFree(spBlQmr->tau2_);
-   cudaFree(spBlQmr->tau2);
-
-
-   cudaFree(spBlQmr->thita2);
-   cudaFree(spBlQmr->hta2);
-   cudaFree(spBlQmr->zita2_);
-   cudaFree(spBlQmr->zita2);
-
-
-   cudaFree(spBlQmr->qrtau);
-   cudaFree(spBlQmr->workMemSpace);
-
+   blQmrD_destroy(spBlQmr);
    return;
 }
 
@@ -740,60 +625,6 @@ void blQmrF_init(float *X, int ldX, float *B, int ldB, float *Q, int ldQ,
 
    cublasSetMathMode(jd->gpuH->cublasH,CUBLAS_TF32_TENSOR_OP_MATH);
 
-   size_t fpSize = sizeof(float);
-   cudaMalloc((void**)&(spBlQmr->rin),fpSize*dim*maxNumEvals);
-   spBlQmr->ldrin=dim;
-   cudaMalloc((void**)&(spBlQmr->w),fpSize*dim*maxNumEvals);   
-   spBlQmr->ldw  =dim;
-   cudaMalloc((void**)&(spBlQmr->ww),fpSize*dim*maxNumEvals);   
-   spBlQmr->ldww =dim;
-
-   cudaMalloc((void**)&(spBlQmr->v1),fpSize*dim*maxNumEvals); 
-   spBlQmr->ldv1=dim;   
-   cudaMalloc((void**)&(spBlQmr->v2),fpSize*dim*maxNumEvals); 
-   spBlQmr->ldv2=dim;      
-   cudaMalloc((void**)&(spBlQmr->v3),fpSize*dim*maxNumEvals); 
-   spBlQmr->ldv3=dim;      
-
-   cudaMalloc((void**)&(spBlQmr->p0),fpSize*dim*maxNumEvals); 
-   spBlQmr->ldp0=dim;     
-   cudaMalloc((void**)&(spBlQmr->p1),fpSize*dim*maxNumEvals); 
-   spBlQmr->ldp1=dim;     
-   cudaMalloc((void**)&(spBlQmr->p2),fpSize*dim*maxNumEvals); 
-   spBlQmr->ldp2=dim;    
-
-   cudaMalloc((void**)&(spBlQmr->qq),fpSize*2*maxNumEvals*2*maxNumEvals); 
-   spBlQmr->ldqq=2*maxNumEvals;    
-   cudaMalloc((void**)&(spBlQmr->q0),fpSize*2*maxNumEvals*2*maxNumEvals); 
-   spBlQmr->ldq0=2*maxNumEvals;       
-   cudaMalloc((void**)&(spBlQmr->q1),fpSize*2*maxNumEvals*2*maxNumEvals); 
-   spBlQmr->ldq1=2*maxNumEvals;       
-   cudaMalloc((void**)&(spBlQmr->q2),fpSize*2*maxNumEvals*2*maxNumEvals); 
-   spBlQmr->ldq2=2*maxNumEvals;       
-
-
-   cudaMalloc((void**)&(spBlQmr->alpha),fpSize*maxNumEvals*maxNumEvals); 
-   spBlQmr->ldalpha=maxNumEvals;          
-   cudaMalloc((void**)&(spBlQmr->vita2),fpSize*maxNumEvals*maxNumEvals); 
-   spBlQmr->ldvita2=maxNumEvals;             
-   cudaMalloc((void**)&(spBlQmr->vita3),fpSize*maxNumEvals*maxNumEvals); 
-   spBlQmr->ldvita3=maxNumEvals;                
-   cudaMalloc((void**)&(spBlQmr->tau2_),fpSize*maxNumEvals*maxNumEvals); 
-   spBlQmr->ldtau2_=maxNumEvals;                
-   cudaMalloc((void**)&(spBlQmr->tau2),fpSize*maxNumEvals*maxNumEvals);  
-   spBlQmr->ldtau2 =maxNumEvals;                
-
-
-   cudaMalloc((void**)&(spBlQmr->thita2),fpSize*maxNumEvals*maxNumEvals); 
-   spBlQmr->ldthita2=maxNumEvals;                   
-   cudaMalloc((void**)&(spBlQmr->hta2),fpSize*maxNumEvals*maxNumEvals);   
-   spBlQmr->ldhta2  =maxNumEvals;                 
-   cudaMalloc((void**)&(spBlQmr->zita2_),fpSize*maxNumEvals*maxNumEvals); 
-   spBlQmr->ldzita2_=maxNumEvals;                   
-   cudaMalloc((void**)&(spBlQmr->zita2),fpSize*maxNumEvals*maxNumEvals);  
-   spBlQmr->ldzita2 =maxNumEvals;                  
-
-
    /* Create fp32 Matrix */
    /* find max-norm of matrix */
    jd->normMatrix = 0;
@@ -825,77 +656,14 @@ void blQmrF_init(float *X, int ldX, float *B, int ldB, float *Q, int ldQ,
                jd->matrix->devCsrRows,jd->matrix->devCols,jd->matrix->devValuesF,
                CUSPARSE_INDEX_32I,CUSPARSE_INDEX_32I,CUSPARSE_INDEX_BASE_ZERO,CUDA_R_32F);
 
-
-   cusparseCreateDnMat(&(spBlQmr->descw16),dim,maxNumEvals,dim,spBlQmr->w,CUDA_R_32F,CUSPARSE_ORDER_COL);
-
-   cusparseSpMM_bufferSize(jd->gpuH->cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
-                     &one,spBlQmr->descA16,spBlQmr->descw16,&zero,
-                     spBlQmr->descw16,CUDA_R_32F,CUSPARSE_SPMM_CSR_ALG1,&bufferSizeSpMM);
-
-   /* mem req for  qr(v2,0) */
-   int Lwork = 0;
-   int maxLwork = 0;
-   // tau will be used also at qr(qq)
-   cudaMalloc((void**)&spBlQmr->qrtau,fpSize*2*maxNumEvals);
-   cusolverDnSgeqrf_bufferSize(jd->gpuH->cusolverH,jd->matrix->dim,maxNumEvals,(float *)spBlQmr->v2,spBlQmr->ldv2,&Lwork);
-   maxLwork = max(Lwork,maxLwork);
-   cusolverDnSorgqr_bufferSize(jd->gpuH->cusolverH,jd->matrix->dim,maxNumEvals,maxNumEvals,
-                        (float *)spBlQmr->v2,spBlQmr->ldv2,(float *)spBlQmr->qrtau,&Lwork);
-   maxLwork = max(Lwork,maxLwork);
-
-   /* mem req for  qr(qq) */
-   Lwork = 0;
-   // using the same tau
-   cusolverDnSgeqrf_bufferSize(jd->gpuH->cusolverH,2*maxNumEvals,2*maxNumEvals,(float *)spBlQmr->qq,spBlQmr->ldqq,&Lwork);
-   maxLwork = max(Lwork,maxLwork);
-   cusolverDnSorgqr_bufferSize(jd->gpuH->cusolverH,2*maxNumEvals,2*maxNumEvals,2*maxNumEvals,
-                        (float *)spBlQmr->qq,spBlQmr->ldqq,(float *)spBlQmr->qrtau,&Lwork);
-   maxLwork = max(Lwork,maxLwork);
-
-   
-   spBlQmr->lworkMemSpace = max(fpSize*maxLwork,bufferSizeSpMM);
-   cudaMalloc((void**)&(spBlQmr->workMemSpace),spBlQmr->lworkMemSpace);
-   cudaMalloc((void**)&(spBlQmr->devInfo),sizeof(int));
-
+   blQmrD_init(0, 0, 0, 0, 0, 0, dim, numEvals,maxNumEvals, 0.0, 0, spBlQmr,jd);
+         
    return;
 }
 
 void blQmrF_destroy(blQmrSpace *spBlQmr){
 
-   cudaFree(spBlQmr->rin);
-   cudaFree(spBlQmr->w);
-   cudaFree(spBlQmr->ww);
-
-   cudaFree(spBlQmr->v1);
-   cudaFree(spBlQmr->v2);
-   cudaFree(spBlQmr->v3);
-
-   cudaFree(spBlQmr->p0);
-   cudaFree(spBlQmr->p1);
-   cudaFree(spBlQmr->p2);
-
-   cudaFree(spBlQmr->qq);
-   cudaFree(spBlQmr->q0);
-   cudaFree(spBlQmr->q1);
-   cudaFree(spBlQmr->q2);
-
-
-   cudaFree(spBlQmr->alpha);
-   cudaFree(spBlQmr->vita2);
-   cudaFree(spBlQmr->vita3);
-   cudaFree(spBlQmr->tau2_);
-   cudaFree(spBlQmr->tau2);
-
-
-   cudaFree(spBlQmr->thita2);
-   cudaFree(spBlQmr->hta2);
-   cudaFree(spBlQmr->zita2_);
-   cudaFree(spBlQmr->zita2);
-
-
-   cudaFree(spBlQmr->qrtau);
-   cudaFree(spBlQmr->workMemSpace);
-
+   blQmrD_destroy(spBlQmr);
    return;
 }
 

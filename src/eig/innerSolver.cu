@@ -32,7 +32,6 @@ void innerSolver_init(double *P, int ldP, double *R, int ldR,
          blQmrH_init((float*)(spInnerSolver->P32), spInnerSolver->ldP32, (float*)(spInnerSolver->B32), spInnerSolver->ldB32,
                         (float*)(spInnerSolver->V32), spInnerSolver->ldV32,dim, numEvals,numEvals,
                         0.0, 0, spInnerSolver->spBlQmr,jd);
-         blQmrD_init(P, ldP, R, ldR, V, ldV, dim, numEvals,numEvals, 0.0, 0, spInnerSolver->spBlQmr,jd);
          break;
 
       case USE_FP32:
@@ -42,7 +41,6 @@ void innerSolver_init(double *P, int ldP, double *R, int ldR,
          blQmrF_init((float*)(spInnerSolver->P32), spInnerSolver->ldP32, (float*)(spInnerSolver->B32), spInnerSolver->ldB32,
                         (float*)(spInnerSolver->V32), spInnerSolver->ldV32,dim, numEvals,numEvals,
                         0.0, 0, spInnerSolver->spBlQmr,jd);
-         blQmrD_init(P, ldP, R, ldR, V, ldV, dim, numEvals,numEvals, 0.0, 0, spInnerSolver->spBlQmr,jd);
          break;
 
        default:
@@ -63,7 +61,6 @@ void innerSolver_destroy(struct jdqmr16Info *jd){
          cudaFree(spInnerSolver->P32);
          cudaFree(spInnerSolver->V32);
          blQmrH_destroy(jd->spInnerSolver->spBlQmr);
-         blQmrD_destroy(jd->spInnerSolver->spBlQmr);
          break;
 
        case USE_FP32:
@@ -71,7 +68,6 @@ void innerSolver_destroy(struct jdqmr16Info *jd){
          cudaFree(spInnerSolver->P32);
          cudaFree(spInnerSolver->V32);
          blQmrF_destroy(jd->spInnerSolver->spBlQmr);
-         blQmrD_destroy(jd->spInnerSolver->spBlQmr);
          break;
 
        default:
@@ -132,7 +128,7 @@ void innerSolver(double *P, int ldP, double *R, int ldR, double *normr,
    if(numConverged == numEvals)
       return;
 
-   if(numNotConverged < 3){
+   if(numNotConverged < 2){
       blQmrD(P, ldP, B, dim, V, ldV, dim, numNotConverged, numEvals,
           pivotThitaIdx, tol, 3*dim, jd->spInnerSolver->spBlQmr,jd);
       return;
