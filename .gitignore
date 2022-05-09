@@ -1,0 +1,4 @@
+lib/
+MTX/*
+examples/ex_eigs
+build/*

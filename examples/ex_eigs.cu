@@ -20,7 +20,7 @@
 void quicksort(double *val ,int first,int last , int *I, int *J);
 int main(){
 
-	char *mName = "MTX_FILES/1138_bus.mtx"; //1138
+	char *mName = "../MTX_FILES/1138_bus.mtx"; //1138
 //	char *mName = "MTX_FILES/msc04515.mtx"; //4,515
 //	char *mName = "MTX_FILES/494_bus.mtx"; // 494
 //	char *mName = "MTX_FILES/nos4.mtx"; // 100
