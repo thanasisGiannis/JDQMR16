@@ -1,7 +1,9 @@
+*.mtx
+*.o.d
 *.so
 *.o
 *.out
-./lib/
-./MTX/
-./examples/bin/
-./build/
+lib/
+MTX/
+examples/bin/
+build/
