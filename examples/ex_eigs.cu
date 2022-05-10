@@ -21,25 +21,9 @@ void quicksort(double *val ,int first,int last , int *I, int *J);
 int main(){
 
 	char *mName = "../MTX_FILES/1138_bus.mtx"; //1138
-//	char *mName = "MTX_FILES/msc04515.mtx"; //4,515
-//	char *mName = "MTX_FILES/494_bus.mtx"; // 494
-//	char *mName = "MTX_FILES/nos4.mtx"; // 100
-//	char *mName = "MTX_FILES/bcsstk01.mtx"; //48
-//   char *mName = "MTX_FILES/ex33.mtx";
-//   char *mName = "MTX_FILES/shallow_water1.mtx";
-//	char *mName = "MTX_FILES/nd24k.mtx"; 
-//	char *mName = "MTX_FILES/Lap7p1M.mtx"; 
-//	char *mName = "MTX_FILES/nasa4704.mtx"; 
-//	char *mName = "MTX_FILES/nasa4704_b.mtx";
-//   char *mName = "MTX_FILES/mhd4800b.mtx";
-//	char *mName = "MTX_FILES/G3_circuit.mtx"; // 1,585,478
-	
+
    /* primme matrices */
-//	char *mName = "MTX_FILES/finan512.mtx"; //74752
-//	char *mName = "MTX_FILES/Andrews.mtx"; 
-//	char *mName = "MTX_FILES/Lap7p1M.mtx"; // problem
-//	char *mName = "MTX_FILES/cfd1.mtx"; 
-//	char *mName = "MTX_FILES/cfd2.mtx"; 
+//	char *mName = "../MTX_FILES/finan512.mtx"; //74752
 
    struct jdqmr16Matrix *A = (struct jdqmr16Matrix *)malloc(sizeof(struct jdqmr16Matrix));
    
