@@ -1,4 +1,7 @@
-lib/*
-MTX/*
-examples/bin/*
-build/*
+*.so
+*.o
+*.out
+./lib/
+./MTX/
+./examples/bin/
+./build/
