@@ -23,9 +23,9 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    int    *rows    = A->rows;
    int    *cols    = A->cols;
 
-   double *devVals  = A->devValuesD;
-   int    *devRows  = A->devRows;
-   int    *devCols  = A->devCols;
+   //double *devVals  = A->devValuesD;
+   //int    *devRows  = A->devRows;
+   //int    *devCols  = A->devCols;
    int     nnz      = A->nnz;
    int     dim      = A->dim;
    int     numEvals = jd->numEvals;
@@ -90,9 +90,9 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    CUDA_CALL(cudaMalloc((void**)&sp->P,sizeof(double)*numEvals*dim));                        sp->ldP     = dim;
    
 
-   double *H        = sp->H;        /* projected Matrix */
-   double *V        = sp->V;        /* Ritz vectors */
-   double *W        = sp->L;        /* Ritz values */
+   //double *H        = sp->H;        /* projected Matrix */
+   //double *V        = sp->V;        /* Ritz vectors */
+   //double *W        = sp->L;        /* Ritz values */
    
    /* init inner functions */
 
@@ -181,8 +181,8 @@ void destroy_jdqmr16(struct jdqmr16Info *jd){
    half   *devValsH = A->devValuesH;
    int    *devRows  = A->devRows;
    int    *devCols  = A->devCols;
-   int    nnz       = A->nnz;
-   int    dim       = A->dim;
+   ///int    nnz       = A->nnz;
+   //int    dim       = A->dim;
 
    CUDA_CALL(cudaFree(devVals));
    CUDA_CALL(cudaFree(devValsH));
@@ -240,8 +240,8 @@ void jdqmr16(struct jdqmr16Info *jd){
    int     basisSize = 1;              /* basis size in blocks */
    double  tol       = jd->tol;        /* tolerance of convergence */
    double  normA     = jd->normMatrix; /* norm of sparse matrix */
-   double  maxerr;
-   int     iter      = 0;
+   //double  maxerr;
+   //int     iter      = 0;
 
    jd->numMatVecsfp64 = 0;
    jd->numMatVecsfp16 = 0;

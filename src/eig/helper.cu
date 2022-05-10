@@ -7,18 +7,18 @@
 
 void printMatrixHalf(half *matrix16, int rows, int cols, char *name){
 
-	double *hmatrix = (double*)malloc(sizeof(double)*rows*cols);
-   double *matrix ; cudaMalloc((void**)&matrix,sizeof(double)*rows*cols);
+	 double *hmatrix = (double*)malloc(sizeof(double)*rows*cols);
+    double *matrix ; cudaMalloc((void**)&matrix,sizeof(double)*rows*cols);
 
 //return;
-   half2doubleMat(matrix, rows, matrix16, rows, rows, cols);
+    half2doubleMat(matrix, rows, matrix16, rows, rows, cols);
 
-	cudaMemcpy(hmatrix,matrix,sizeof(double)*rows*cols,cudaMemcpyDeviceToHost);
+	 cudaMemcpy(hmatrix,matrix,sizeof(double)*rows*cols,cudaMemcpyDeviceToHost);
 
-	printf("\%% %s\n",name);
-	printf("\%% ===================\n");
+	 printf("%% %s\n",name);
+	 printf("%% ===================\n");
 
-	 printf("%s = zeros(%d,%d);\n",name,rows,cols);
+    printf("%s = zeros(%d,%d);\n",name,rows,cols);
     for(int row = 0 ; row < rows ; row++){
         for(int col = 0 ; col < cols ; col++){
             double Areg = hmatrix[row + col*rows];
@@ -28,7 +28,7 @@ void printMatrixHalf(half *matrix16, int rows, int cols, char *name){
     }
 
 
-	printf("\%% ===================\n\n");
+	printf("%% ===================\n\n");
 	free(hmatrix);
    cudaFree(matrix);
 }
@@ -40,8 +40,8 @@ void printMatrixDouble(double *matrix, int rows, int cols, char *name){
 	double *hmatrix = (double*)malloc(sizeof(double)*rows*cols);
 	cudaMemcpy(hmatrix,matrix,sizeof(double)*rows*cols,cudaMemcpyDeviceToHost);
 
-	printf("\%% %s\n",name);
-	printf("\%% ===================\n");
+	printf("%% %s\n",name);
+	printf("%% ===================\n");
 
 	 printf("%s = zeros(%d,%d);\n",name,rows,cols);
     for(int row = 0 ; row < rows ; row++){
@@ -53,7 +53,7 @@ void printMatrixDouble(double *matrix, int rows, int cols, char *name){
     }
 
 
-	printf("\%% ===================\n\n");
+	printf("%% ===================\n\n");
 	free(hmatrix);
 }
 
@@ -62,8 +62,8 @@ void printMatrixInt(int *matrix, int rows, int cols, char *name){
 	int *hmatrix = (int*)malloc(sizeof(int)*rows*cols);
 	cudaMemcpy(hmatrix,matrix,sizeof(int)*rows*cols,cudaMemcpyDeviceToHost);
 
-	printf("\%% %s\n",name);
-	printf("\n\n \%% ===================\n");
+	printf("%% %s\n",name);
+	printf("\n\n %% ===================\n");
 
 	 printf("%s = zeros(%d,%d);\n",name,rows,cols);
     for(int row = 0 ; row < rows ; row++){
@@ -74,7 +74,7 @@ void printMatrixInt(int *matrix, int rows, int cols, char *name){
     }
 
 
-	printf("\n\n \%% ===================\n");
+	printf("\n\n %% ===================\n");
 	free(hmatrix);
 
 }

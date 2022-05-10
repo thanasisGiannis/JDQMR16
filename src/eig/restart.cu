@@ -18,7 +18,7 @@ void restart_init(double *W, int ldW, double *H, int ldH,
 
 
    struct gpuHandler *gpuH    = jd->gpuH;
-   cublasHandle_t     cublasH   = gpuH->cublasH;
+   //cublasHandle_t     cublasH   = gpuH->cublasH;
    cusolverDnHandle_t cusolverH = gpuH->cusolverH;
    cusparseHandle_t   cusparseH = gpuH->cusparseH;
 
@@ -30,14 +30,14 @@ void restart_init(double *W, int ldW, double *H, int ldH,
    cudaMalloc((void**)&(spRestart->AW),sizeof(double)*dim*3*numEvals);
    spRestart->ldAW = dim;
 
-   double *d_tau;  
-   int    *devInfo;
-   double *d_work;
+   //double *d_tau;  
+   //int    *devInfo;
+   //double *d_work;
 
    int lwork_geqrf = 0;
    int lwork_orgqr = 0;
-   int lwork = 0;
-   int info_gpu = 0;   
+   //int lwork = 0;
+   //int info_gpu = 0;   
 
    cudaMalloc((void**)&(spRestart->d_tau), sizeof(double)*dim);
    cudaMalloc((void**)&(spRestart->devInfo), sizeof(int));
@@ -51,9 +51,9 @@ void restart_init(double *W, int ldW, double *H, int ldH,
 
 
 
-   cusparseSpMatDescr_t descrA;
-   cusparseDnMatDescr_t descrW;
-   cusparseDnMatDescr_t descrAW;
+   //cusparseSpMatDescr_t descrA;
+   //cusparseDnMatDescr_t descrW;
+   //cusparseDnMatDescr_t descrAW;
    cudaMalloc((void**)&(spRestart->AW),sizeof(double)*dim*3*numEvals);
    spRestart->ldAW = dim;
 
@@ -63,12 +63,12 @@ void restart_init(double *W, int ldW, double *H, int ldH,
 	cusparseCreateDnMat(&(spRestart->descrW),dim,3*numEvals,ldW,W,CUDA_R_64F,CUSPARSE_ORDER_COL);
 	cusparseCreateDnMat(&(spRestart->descrAW),dim,3*numEvals,spRestart->ldAW,spRestart->AW,CUDA_R_64F,CUSPARSE_ORDER_COL);
 
-   size_t bufferSize;
+   //size_t bufferSize;
    double zero = 0.0;
    double one  = 1.0;
    cusparseSpMM_bufferSize(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE,
                         &one,spRestart->descrA,spRestart->descrW,&zero,
-                        spRestart->descrAW,CUDA_R_64F,CUSPARSE_COOMM_ALG2,&(spRestart->bufferSize));
+                        spRestart->descrAW,CUDA_R_64F,CUSPARSE_SPMM_COO_ALG2,&(spRestart->bufferSize));
 
    assert(spRestart->bufferSize>0);
 	cudaMalloc((void**)&(spRestart->buffer),spRestart->bufferSize);
@@ -139,7 +139,7 @@ void restart(double *W, int ldW, double *H, int ldH,
 
    cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,descrA,descrW,&zero,descrAW,CUDA_R_64F,
-             CUSPARSE_COOMM_ALG2,buffer);
+             CUSPARSE_SPMM_COO_ALG2,buffer);
 
 
    /* W = W'*AW */

@@ -162,8 +162,8 @@ struct initBasisSpace{
    cusparseSpMatDescr_t descrA = NULL;
 	cusparseDnMatDescr_t descrV = NULL;
 	cusparseDnMatDescr_t descrAV = NULL;
-   size_t   bufferSize = -1;
-   size_t   bufferSizeTrans = -1;
+   size_t   bufferSize = 0;
+   size_t   bufferSizeTrans = 0;
    void    *externalBuffer;
 
    double  *AV; int ldAV;

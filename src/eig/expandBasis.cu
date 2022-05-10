@@ -20,7 +20,7 @@ void expandBasis_init(double *W, int ldW, double *H, int ldH, double *P, int ldP
    
    /* P = P - W*W'*P */
    struct gpuHandler     *gpuH      = jd->gpuH;
-   cublasHandle_t         cublasH   = gpuH->cublasH;
+   //cublasHandle_t         cublasH   = gpuH->cublasH;
    cusolverDnHandle_t     cusolverH = gpuH->cusolverH;
    cusparseHandle_t       cusparseH = gpuH->cusparseH;
 
@@ -29,14 +29,14 @@ void expandBasis_init(double *W, int ldW, double *H, int ldH, double *P, int ldP
    spExpandBasis->ldWTP = maxBasisSize*numEvals;
 
    /* P = orth(P) */
-   double *d_tau   = spExpandBasis->d_tau;
-   int    *devInfo = spExpandBasis->devInfo;
-   double *d_work  = spExpandBasis->d_work;
+   //double *d_tau   = spExpandBasis->d_tau;
+   //int    *devInfo = spExpandBasis->devInfo;
+   //double *d_work  = spExpandBasis->d_work;
 
    int lwork_geqrf = 0;
    int lwork_orgqr = 0;
-   int lwork = spExpandBasis->lwork;
-   int info_gpu = 0;   
+   //int lwork = spExpandBasis->lwork;
+   //int info_gpu = 0;   
 
    cudaMalloc((void**)&(spExpandBasis->d_tau), sizeof(double)*dim);
    cudaMalloc((void**)&(spExpandBasis->devInfo), sizeof(int));
@@ -62,7 +62,7 @@ void expandBasis_init(double *W, int ldW, double *H, int ldH, double *P, int ldP
 
    cusparseSpMM_bufferSize(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE, CUSPARSE_OPERATION_NON_TRANSPOSE,
                         &one,spExpandBasis->descrA,spExpandBasis->descrP,&zero,
-                        spExpandBasis->descrAP,CUDA_R_64F,CUSPARSE_COOMM_ALG2,&(spExpandBasis->bufferSize));
+                        spExpandBasis->descrAP,CUDA_R_64F,CUSPARSE_SPMM_COO_ALG2,&(spExpandBasis->bufferSize));
 
 
    assert(spExpandBasis->bufferSize>0);
@@ -129,7 +129,7 @@ void expandBasis(double *W, int ldW, double *H, int ldH, double *P, int ldP, dou
    double *AP = spExpandBasis->AP; int ldAP = spExpandBasis->ldAP;
    cusparseSpMM(cusparseH,CUSPARSE_OPERATION_NON_TRANSPOSE,CUSPARSE_OPERATION_NON_TRANSPOSE,
              &one,spExpandBasis->descrA,spExpandBasis->descrP,&zero,spExpandBasis->descrAP,CUDA_R_64F,
-             CUSPARSE_COOMM_ALG2,spExpandBasis->buffer);
+             CUSPARSE_SPMM_COO_ALG2,spExpandBasis->buffer);
 
    /* H = [H W'*AP; P'*AW P'*AP*/
    // P'*AP   

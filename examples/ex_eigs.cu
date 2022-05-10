@@ -20,7 +20,7 @@
 void quicksort(double *val ,int first,int last , int *I, int *J);
 int main(){
 
-	char *mName = "../MTX_FILES/1138_bus.mtx"; //1138
+	const char *mName = "../MTX_FILES/1138_bus.mtx"; //1138
 
    /* primme matrices */
 //	char *mName = "../MTX_FILES/finan512.mtx"; //74752
@@ -36,7 +36,6 @@ int main(){
    
 
    /* \/--- Loading Data ---\/ */
-   int ret_code;
    MM_typecode matcode;
    FILE *f;
 
@@ -63,8 +62,7 @@ int main(){
    }
 
    /* find out size of sparse matrix .... */
-   if ((ret_code = mm_read_mtx_crd_size(f, &numRows, &numCols, &nnz)) !=0)
-     exit(1);
+   if ((mm_read_mtx_crd_size(f, &numRows, &numCols, &nnz)) !=0) exit(1);
 
    int trueNNZ = 0;
    int tmprows,tmpcols; 

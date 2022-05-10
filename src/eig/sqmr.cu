@@ -51,7 +51,7 @@ void sqmrD(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEva
    double minus_alpha;
    double deltaScal1;
    double deltaScal2;
-   double one32 = 1.0;
+   //double one32 = 1.0;
       
    double BITA  = 0.0;
    double DELTA = 0.0;
@@ -87,12 +87,12 @@ void sqmrD(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEva
    double *VTd   = (double*)spsqmr->VTd;
 
    /* cusparse data initilization */
-   struct jdqmr16Matrix  *A = jd->matrix;
+   //struct jdqmr16Matrix  *A = jd->matrix;
    cusparseSpMatDescr_t descrA = spsqmr->descrA;
    cusparseDnVecDescr_t descrd = spsqmr->descrd;
    cusparseDnVecDescr_t descrw = spsqmr->descrw;
 
-   size_t bufferSize = spsqmr->bufferSize;// = spsqmr->bufferSize;
+   //size_t bufferSize = spsqmr->bufferSize;// = spsqmr->bufferSize;
    void *buffer = spsqmr->buffer;// = spsqmr->buffer;
 
 
@@ -181,7 +181,7 @@ void sqmrD(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEva
 
       gama = c*c*Thita_; 
       xi = c*c*alpha;    
-      normt; 
+      //normt; 
       cublasNrm2Ex(cublasH,dim,r,CUDA_R_64F,1,&normt,CUDA_R_64F,CUDA_R_64F); 
       f = 1 + normt*normt; 
       PSI = gama*(PSI + FI);
@@ -259,24 +259,24 @@ void sqmrD_destroy(struct jdqmr16Info *jd){
 void sqmrD_init(double *X, int ldX, double *B, int ldB, double *V,int ldV, int numEvals,
                int dim, double infNormB, struct jdqmr16Info *jd){
 
-   double tmpScalar;
-   double minus_one = -1.0;
+   //double tmpScalar;
+   //double minus_one = -1.0;
    double one       =  1.0;
    double zero      =  0.0;
 
 
 
-   double *x = X;
-   double *b = B;
+   //double *x = X;
+   //double *b = B;
    
    struct gpuHandler               *gpuH   = jd->gpuH;
-   cublasHandle_t                cublasH   = gpuH->cublasH;
+   //cublasHandle_t                cublasH   = gpuH->cublasH;
    cusparseHandle_t              cusparseH = gpuH->cusparseH;
    struct innerSolverSpace       *spInnerSolver = jd->spInnerSolver;         
    struct sqmrSpace              *spsqmr   = spInnerSolver->spSQmr;
 
 
-   double *t = x;
+   //double *t = x;
    cudaMalloc((void**)&(spsqmr->delta),sizeof(double)*dim);
    cudaMalloc((void**)&(spsqmr->r),sizeof(double)*dim);
    cudaMalloc((void**)&(spsqmr->d),sizeof(double)*dim);
@@ -298,7 +298,7 @@ void sqmrD_init(double *X, int ldX, double *B, int ldB, double *V,int ldV, int n
 
 
 
-   assert(spsqmr->bufferSize>=0);
+   //assert(spsqmr->bufferSize>0);
    cudaMalloc((void**)&spsqmr->buffer,spsqmr->bufferSize);
 
 
@@ -316,24 +316,24 @@ void sqmrD_init(double *X, int ldX, double *B, int ldB, double *V,int ldV, int n
 void sqmr_init(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct jdqmr16Info *jd){
 
  
-   half tmpScalar;
+   //half tmpScalar;
    half minus_one = __float2half(-1.0);
    half one  = __float2half(1.0);
    half zero = __float2half(0.0);
 
 
 
-   half *x = X;
-   half *b = B;
+   //half *x = X;
+   //half *b = B;
    
    struct gpuHandler               *gpuH   = jd->gpuH;
-   cublasHandle_t                cublasH   = gpuH->cublasH;
+   //cublasHandle_t                cublasH   = gpuH->cublasH;
    cusparseHandle_t              cusparseH = gpuH->cusparseH;
    struct innerSolverSpace       *spInnerSolver = jd->spInnerSolver;         
    struct sqmrSpace              *spsqmr   = spInnerSolver->spSQmr;
 
 
-   half *t = x;
+   //half *t = x;
    cudaMalloc((void**)&(spsqmr->delta),sizeof(half)*dim);
    cudaMalloc((void**)&(spsqmr->r),sizeof(half)*dim);
    cudaMalloc((void**)&(spsqmr->d),sizeof(half)*dim);
@@ -354,7 +354,7 @@ void sqmr_init(half *X, int ldX, half *B, int ldB, int dim, double infNormB, str
 
 
 
-   assert(spsqmr->bufferSize>=0);
+   //assert(spsqmr->bufferSize>=0);
    cudaMalloc((void**)&spsqmr->buffer,spsqmr->bufferSize);
 
 
@@ -451,12 +451,12 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
    half *w = (half*)spsqmr->w;     
 
    /* cusparse data initilization */
-   struct jdqmr16Matrix  *A = jd->matrix;
+   //struct jdqmr16Matrix  *A = jd->matrix;
    cusparseSpMatDescr_t descrA = spsqmr->descrA;
    cusparseDnVecDescr_t descrd = spsqmr->descrd;
    cusparseDnVecDescr_t descrw = spsqmr->descrw;
 
-   size_t bufferSize = spsqmr->bufferSize;// = spsqmr->bufferSize;
+   //size_t bufferSize = spsqmr->bufferSize;// = spsqmr->bufferSize;
    void *buffer = spsqmr->buffer;// = spsqmr->buffer;
 
 
@@ -523,7 +523,7 @@ void sqmr(half *X, int ldX, half *B, int ldB, int dim, double infNormB, struct j
 
       gama = c*c*Thita_; 
       xi = c*c*alpha;    
-      normt; 
+      //normt; 
       cublasNrm2Ex(cublasH,dim,r,CUDA_R_16F,1,&tmpScalar,CUDA_R_16F,CUDA_R_32F); 
       normt = __half2float(tmpScalar);
       f = 1 + normt*normt; 

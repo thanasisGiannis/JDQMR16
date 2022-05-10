@@ -147,7 +147,7 @@ For step 1 sQMR with early stopping is used
 //      printMatrixHalf(X16,dim,1,"X");
 //      printMatrixHalf(B16,dim,1,"B");
 
-      struct jdqmr16Matrix  *A = jd->matrix;
+//      struct jdqmr16Matrix  *A = jd->matrix;
 //      printMatrixInt(A->devRows,A->nnz,1,"rows");
 //      printMatrixInt(A->devCols,A->nnz,1,"cols"); 
 

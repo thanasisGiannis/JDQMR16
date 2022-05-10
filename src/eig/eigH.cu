@@ -22,9 +22,10 @@ void eigH_init(double *W, int ldW, double *L, double *H, int ldH, int numEvals, 
 
 
 
-   int lwork      = spEig->lwork;   
-   int *devInfo   = spEig->devInfo; cudaMalloc((void**)&(spEig->devInfo),sizeof(int));
-   double *d_work = spEig->d_work;
+   //int lwork      = spEig->lwork;   
+   //int *devInfo   = spEig->devInfo; 
+   cudaMalloc((void**)&(spEig->devInfo),sizeof(int));
+   //double *d_work = spEig->d_work;
    
    spEig->ldQH = numEvals*maxBasisSize;
    cudaMalloc((void**)&(spEig->QH), sizeof(double)*(spEig->ldQH)*(numEvals*maxBasisSize));
@@ -42,7 +43,7 @@ void eigH_init(double *W, int ldW, double *L, double *H, int ldH, int numEvals, 
 
 void eigH_destroy(struct jdqmr16Info *jd){
 
-   struct gpuHandler *gpuH    = jd->gpuH;
+   //struct gpuHandler *gpuH    = jd->gpuH;
    struct eigHSpace  *spEig   = jd->spEigH;
 
    cudaFree(spEig->QH);

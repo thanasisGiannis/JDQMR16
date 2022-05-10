@@ -69,7 +69,7 @@ void __double2halfMat(half *A16, int ldA16, double *A, int ldA, int rows, int co
    return;
 
 
-
+/*
 	for(int k=0;k<BLOCK;k++){
 		if( (i+k-1) >= rows)
 			break;
@@ -77,6 +77,7 @@ void __double2halfMat(half *A16, int ldA16, double *A, int ldA, int rows, int co
 		A16[(i+k-1)+j*ldA16] = __float2half(val);
 	}
 	return ;
+*/
 }
 
 __global__
@@ -93,6 +94,7 @@ void __half2doubleMat(double *A,int ldA, half *A16, int ldA16, int rows, int col
    A[i + j*ldA] =(double) __half2float(A16[i + j*ldA16]);
    return;
 
+/*
 	for(int k=0;k<BLOCK;k++){
 		if( (i+k-1) >= rows)
 			break;
@@ -101,6 +103,7 @@ void __half2doubleMat(double *A,int ldA, half *A16, int ldA16, int rows, int col
 
 
 	return ;
+*/
 }
 
 
