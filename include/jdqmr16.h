@@ -72,6 +72,7 @@ struct sqmrSpace{
 
 struct innerSolverSpace{
 
+/*
    double *B;    int ldB;
    double *VTB;  int ldVTB;
    double *X;    int ldX;      
@@ -81,6 +82,7 @@ struct innerSolverSpace{
    void *X16;
    void *B16;
   
+*/
    struct sqmrSpace        *spSQmr;
 
 };
