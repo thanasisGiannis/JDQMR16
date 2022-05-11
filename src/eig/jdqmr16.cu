@@ -122,7 +122,11 @@ void init_jdqmr16(struct jdqmr16Info *jd){
    innerSolver_init(sp->P, sp->ldP, sp->R, sp->ldR, sp->V, sp->ldV, sp->L, numEvals, dim,jd);
 
 
-   /* find norm of matrix */
+   /*
+      find norm of matrix 
+      needed for termination criteria      
+   */
+
    jd->normMatrix = 0;
    double *val = A->values;
    for(int i=0; i<A->nnz; i++){
@@ -130,18 +134,6 @@ void init_jdqmr16(struct jdqmr16Info *jd){
          jd->normMatrix = abs(val[i]);      
       }
    }
-
-   /* Half precision matrix creation */
-   double *vec; cudaMalloc((void**)&vec,(A->nnz)*sizeof(double));
-   cudaMemcpy(vec,A->devValuesD,(A->nnz)*sizeof(double),cudaMemcpyDeviceToDevice);
-   double alpha; 
-//   if(jd->normMatrix > 5e+03){
-   if(1){
-      alpha = 2048.0/(jd->normMatrix);
-      cublasScalEx(*cublasH,A->nnz,&alpha,CUDA_R_64F,vec,CUDA_R_64F,1,CUDA_R_64F);
-   }
-   CUDA_CALL(double2halfMat(A->devValuesH, A->nnz, vec, A->nnz, A->nnz, 1));
-   cudaFree(vec);
 
 
    return;
@@ -261,6 +253,7 @@ void jdqmr16(struct jdqmr16Info *jd){
       /* Inner sQMR16 to be used here in the future */
       //cudaMemcpy(P,R,sizeof(double)*dim*numEvals,cudaMemcpyDeviceToDevice);
       innerSolver(P,ldP,R,ldR,V,ldV,L,numEvals,dim,jd);
+
       if(basisSize == maxBasis){
          /* no space left - Restart basis */
          restart(W, ldW, H, ldH, Vprev, ldVprev, NULL ,

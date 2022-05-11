@@ -17,6 +17,8 @@ struct jdqmr16Matrix {
 
 	/* gpu matrix space */
    double  *devValuesD;
+   double  *devColumnNorms;
+
  	half    *devValuesH;
 	int     *devCols;
 	int     *devRows;
@@ -53,6 +55,7 @@ struct devSolverSpace{
 
 struct sqmrSpace{
 
+   
    void *delta; 
    void *r;     
    void *d;     
@@ -72,15 +75,16 @@ struct sqmrSpace{
 
 struct innerSolverSpace{
 
-   double *B;    int ldB;
-   double *VTB;  int ldVTB;
-   double *X;    int ldX;      
-   double *maxB; 
-   int    *normIndexB;
+   double *B = NULL;    int ldB;
+   double *VTB = NULL;  int ldVTB;
+   double *X = NULL;    int ldX;      
+   double *maxB = NULL; 
+   int    *normIndexB = NULL;
 
-   void *X16;
-   void *B16;
-  
+   void *X16 = NULL;
+   void *B16 = NULL;
+   void *V16 = NULL;  int ldV16;
+   
    struct sqmrSpace        *spSQmr;
 
 };
@@ -180,7 +184,7 @@ struct jdqmr16Info {
    int maxBasis =  15;
    int maxIter  =  1000;
    double tol      =  1e-04;
-   double normMatrix = 0;
+   double normMatrix = 1;
    struct jdqmr16Matrix  *matrix;
    struct devSolverSpace *sp;
    struct gpuHandler     *gpuH;
