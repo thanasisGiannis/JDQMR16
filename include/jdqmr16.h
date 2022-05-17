@@ -72,6 +72,15 @@ struct sqmrSpace{
 
 struct innerSolverSpace{
 
+   double *devScaledValuesD; //double precision
+   void   *devScaledValuesH; //half   precision
+   int    *devRows;
+   int    *devCols;
+
+   double *devNorms;
+   double *devInvNorms;
+
+
 /*
    double *B;    int ldB;
    double *VTB;  int ldVTB;
@@ -83,6 +92,8 @@ struct innerSolverSpace{
    void *B16;
   
 */
+
+   
    struct sqmrSpace        *spSQmr;
 
 };

@@ -123,7 +123,7 @@ int main(){
    jd->numEvals = 1;     // number of wanted eigenvalues
    jd->maxBasis = 15;    // maximum size of JD basis
    jd->maxIter  = 1000;  // maximum number of JD iterations
-   jd->tol      = 1e-08; // tolerance of the residual
+   jd->tol      = 1e-03; // tolerance of the residual
    jd->matrix   = A;     // data of matrix
    jd->useHalf  = 1;
 
